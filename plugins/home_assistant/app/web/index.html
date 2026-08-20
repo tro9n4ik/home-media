@@ -269,6 +269,13 @@ fieldset { border: none; margin-bottom: 12px; }
   background: rgba(76,201,240,.28); color: var(--cyan); border-radius: 4px; padding: 0 3px;
 }
 .e-row .ee { margin-left: auto; color: var(--txt3); font-size: 10.5px; font-family: ui-monospace, monospace; }
+.e-row .gt {
+  flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--txt); padding: 5px 9px; font-size: 12px;
+  font-family: inherit; outline: none; transition: border-color .15s;
+}
+.e-row .gt:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(76,201,240,.14); }
+.e-row .gt.empty { color: var(--txt3); font-style: italic; }
 .e-row .act { display: flex; gap: 3px; flex: none; align-items: center; }
 .e-row input[type=checkbox] { accent-color: var(--cyan); width: 16px; height: 16px; cursor: pointer; }
 .e-row .plus { flex: none; }
@@ -730,9 +737,23 @@ const E_ICONS = {
 };
 const TG_EMOJI = ['💡','🌡','🔌','🌀','📺','🪟','🔒','🎛','🤖','📜','💧','🔥','❄','🔔','🏠','🌙','🚪','🛋','🍳','🧺','🚗','🔊','📷','🚨','⏰','🎥','🖥','⚡','♨️','🧊','🌬','🚿'];
 
+const entId = x => typeof x === 'string' ? x : ((x && x.id) || '');
+const egrp = gi => TG_GROUPS[gi] || { entities: [] };
+function inGroup(gi, eid) { return egrp(gi).entities.some(x => entId(x) === eid); }
+function gIdx(gi, eid) { return egrp(gi).entities.findIndex(x => entId(x) === eid); }
+function normGroups(groups) {
+  return (groups || []).map(g => ({
+    name: g.name || '',
+    icon: g.icon || '▪',
+    entities: (g.entities || []).map(x => typeof x === 'string'
+      ? { id: x, title: '' }
+      : { id: x.id || '', title: x.title || '' }),
+  }));
+}
+
 function tgUnassigned() {
   const used = new Set();
-  TG_GROUPS.forEach(g => (g.entities || []).forEach(x => used.add(x)));
+  TG_GROUPS.forEach(g => (g.entities || []).forEach(x => used.add(entId(x))));
   return TG_ENTITIES.filter(e => !used.has(e.entity_id));
 }
 
@@ -754,13 +775,13 @@ async function loadTgMenu() {
   try {
     const cfg = await api('/config?masked=true');
     const data = await api('/api/entities');
-    TG_GROUPS = Array.isArray(cfg.config.tg_groups) ? cfg.config.tg_groups : [];
+    TG_GROUPS = normGroups(cfg.config.tg_groups);
     TG_SHOW_SENSORS = cfg.config.tg_show_sensors !== false;
     TG_ENTITIES = data.entities || [];
     TG_ACTIVE = TG_GROUPS.length ? 0 : -1;
     TG_SEARCH = '';
     TG_DOMAIN = '';
-    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.slice().map(g => ({ ...g, entities: [...(g.entities || [])] })), s: TG_SHOW_SENSORS });
+    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.map(g => ({ ...g, entities: g.entities.map(x => ({ ...x })) })), s: TG_SHOW_SENSORS });
     $('#tgSensorsChk').checked = TG_SHOW_SENSORS;
     renderTgAll();
   } catch (e) {
@@ -861,12 +882,15 @@ function tgEntityList(ents, showPlus) {
   if (!list.length) return '<div class="e-empty">Ничего не найдено.</div>';
   return `<div class="e-list">
     ${list.map(e => {
-      const inG = !showPlus && ((TG_GROUPS[TG_ACTIVE] || {}).entities || []).includes(e.entity_id);
-      const idx = inG ? (TG_GROUPS[TG_ACTIVE] || {}).entities.indexOf(e.entity_id) : -1;
+      const inG = !showPlus && inGroup(TG_ACTIVE, e.entity_id);
+      const idx = inG ? gIdx(TG_ACTIVE, e.entity_id) : -1;
+      const title = inG ? (egrp(TG_ACTIVE).entities[idx].title || '') : '';
       return `<div class="e-row" ${inG && !showPlus ? `draggable="true" ondragstart="tgEntDragStart('${e.entity_id}')" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="tgEntDrop('${e.entity_id}');this.classList.remove('over')"` : ''} onclick="${showPlus ? `tgAddUnassigned('${e.entity_id}')` : ''}">
         <span>${E_ICONS[e.domain] || '▪'}</span>
         <span class="en">${hl(e.name, TG_SEARCH)}</span>
-        <span class="ee">${hl(e.entity_id, TG_SEARCH)}</span>
+        ${inG && !showPlus
+          ? `<input class="gt ${title ? '' : 'empty'}" placeholder="Название кнопки (необязательно)" value="${escapeHtml(title)}" onchange="tgSetTitle(${TG_ACTIVE},'${e.entity_id}',this.value)">`
+          : `<span class="ee">${hl(e.entity_id, TG_SEARCH)}</span>`}
         ${showPlus
           ? `<button class="btn sm plus" onclick="event.stopPropagation();tgAddUnassigned('${e.entity_id}')">＋</button>`
           : `<span class="act">
@@ -880,12 +904,20 @@ function tgEntityList(ents, showPlus) {
 }
 
 function tgToggle(gi, eid, on) {
-  const g = TG_GROUPS[gi] || { entities: [] };
+  const g = egrp(gi);
   g.entities = g.entities || [];
-  if (on) { if (!g.entities.includes(eid)) g.entities.push(eid); }
-  else { g.entities = g.entities.filter(x => x !== eid); }
+  if (on) { if (!g.entities.some(x => entId(x) === eid)) g.entities.push({ id: eid, title: '' }); }
+  else { g.entities = g.entities.filter(x => entId(x) !== eid); }
   tgMarkDirty();
-  renderTgSide();
+  renderTgAll();
+}
+
+function tgSetTitle(gi, eid, val) {
+  const it = egrp(gi).entities.find(x => entId(x) === eid);
+  if (!it) return;
+  it.title = (val || '').trim();
+  tgMarkDirty();
+  renderTgAll();
 }
 
 function tgMove(gi, idx, dir) {
@@ -904,7 +936,7 @@ function tgAddUnassigned(eid) {
   if (TG_ACTIVE < 0 || !TG_GROUPS[TG_ACTIVE]) { toast('Сначала выберите группу слева', true); return; }
   const g = TG_GROUPS[TG_ACTIVE];
   g.entities = g.entities || [];
-  if (!g.entities.includes(eid)) g.entities.push(eid);
+  if (!g.entities.some(x => entId(x) === eid)) g.entities.push({ id: eid, title: '' });
   toast('＋ Добавлено в «' + (g.name || 'группа') + '»');
   tgMarkDirty();
   renderTgSide();
@@ -976,11 +1008,11 @@ function tgEntDrop(eid) {
   const g = TG_GROUPS[TG_ACTIVE];
   if (!g) { TG_DRAG = null; return; }
   const all = g.entities.slice();
-  const i = all.indexOf(TG_DRAG);
-  const j = all.indexOf(eid);
+  const i = all.findIndex(x => entId(x) === TG_DRAG);
+  const j = all.findIndex(x => entId(x) === eid);
   if (i < 0 || j < 0) { TG_DRAG = null; return; }
-  all.splice(i, 1);
-  all.splice(j, 0, TG_DRAG);
+  const [drag] = all.splice(i, 1);
+  all.splice(j, 0, drag);
   g.entities = all;
   TG_DRAG = null;
   tgMarkDirty();
@@ -1001,7 +1033,10 @@ async function saveTgMenu() {
   const groups = TG_GROUPS.map(g => ({
     name: (g.name || '').trim(),
     icon: (g.icon || '').trim() || '▪',
-    entities: (g.entities || []).filter(Boolean),
+    entities: (g.entities || []).map(x => {
+      const title = (x.title || '').trim();
+      return title ? { id: x.id, title } : x.id;
+    }).filter(Boolean),
   })).filter(g => g.name);
   try {
     await api('/config', {
@@ -1011,9 +1046,9 @@ async function saveTgMenu() {
         tg_show_sensors: $('#tgSensorsChk').checked,
       }),
     });
-    TG_GROUPS = groups;
+    TG_GROUPS = normGroups(groups);
     TG_SHOW_SENSORS = $('#tgSensorsChk').checked;
-    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.slice().map(g => ({ ...g, entities: [...g.entities] })), s: TG_SHOW_SENSORS });
+    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.map(g => ({ ...g, entities: g.entities.map(x => ({ ...x })) })), s: TG_SHOW_SENSORS });
     toast('✓ Меню обновлено');
     setTgStatus('✓ сохранено');
     tgMarkDirty();
@@ -1070,9 +1105,10 @@ function renderPreview() {
   } else {
     const g = TG_GROUPS[TG_PREV];
     if (!g) { closePreview(); return; }
-    const ids = (g.entities || []).map(eid => TG_ENTITIES.find(e => e.entity_id === eid)).filter(Boolean);
-    msg = `${g.icon || '▪'} <b>${g.name}</b> (${ids.length}):\n${ids.map(e => `${e.icon} ${e.name} — <b>${e.state_str}</b>`).join('\n')}`;
-    ids.forEach(e => kb.push({ t: `${e.icon} ${e.name}`, d: 'x' + e.entity_id }));
+    const entries = (g.entities || []).map(it => ({ it, e: TG_ENTITIES.find(x => x.entity_id === entId(it)) })).filter(o => o.e);
+    const label = o => o.it.title || o.e.name;
+    msg = `${g.icon || '▪'} <b>${g.name}</b> (${entries.length}):\n${entries.map(o => `${o.e.icon} ${label(o)} — <b>${o.e.state_str}</b>`).join('\n')}`;
+    entries.forEach(o => kb.push({ t: `${o.e.icon} ${label(o)}`, d: 'x' + o.e.entity_id }));
     kb.push({ t: '◀ Назад', full: true, d: 'm' });
   }
   chat.innerHTML = `
@@ -1082,10 +1118,10 @@ function renderPreview() {
     </div>`;
 }
 
-function renderDetail(e) {
+function renderDetail(e, label) {
   const chat = $('#chat');
   chat.innerHTML = `
-    <div class="tg-msg">${e.icon} <b>${escapeHtml(e.name)}</b>\n🗂 ${escapeHtml(e.domain)}\nСостояние: <b>${escapeHtml(e.state_str)}</b></div>
+    <div class="tg-msg">${e.icon} <b>${escapeHtml(label || e.name)}</b>\n🗂 ${escapeHtml(e.domain)}\nСостояние: <b>${escapeHtml(e.state_str)}</b></div>
     <div class="tg-kb">
       <button class="b full" data-act="${TG_PREV >= 0 ? 'g' + TG_PREV : 'm'}">◀ Назад</button>
     </div>`;
@@ -1105,7 +1141,14 @@ document.addEventListener('click', (ev) => {
   }
   if (act.startsWith('x')) {
     const e = TG_ENTITIES.find(x => x.entity_id === act.slice(1));
-    if (e) renderDetail(e);
+    if (e) {
+      let label = e.name;
+      if (TG_PREV >= 0) {
+        const it = (egrp(TG_PREV).entities || []).find(x => entId(x) === e.entity_id);
+        if (it && it.title) label = it.title;
+      }
+      renderDetail(e, label);
+    }
     return;
   }
 });

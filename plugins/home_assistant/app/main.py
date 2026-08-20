@@ -437,7 +437,9 @@ _DOMAIN_LABELS = {
 
 
 def _tg_groups() -> list[dict]:
-    """Пользовательские группы Telegram-меню: [{"name", "icon", "entities": [...]}]."""
+    """Пользовательские группы Telegram-меню: [{"name","icon","entities":[...]}].
+    Элемент entities — строка (entity_id, исторический формат) или {"id","title"} —
+    объект с кастомным названием кнопки."""
     groups = app.config.get("tg_groups") or []
     if not isinstance(groups, list):
         return []
@@ -449,7 +451,16 @@ def _tg_groups() -> list[dict]:
         name = str(g.get("name") or "").strip()
         if not name:
             continue
-        ents = [str(x) for x in (g.get("entities") or []) if x in valid]
+        ents = []
+        for x in (g.get("entities") or []):
+            if isinstance(x, dict):
+                eid = str(x.get("id") or "").strip()
+                title = str(x.get("title") or "").strip()
+            else:
+                eid = str(x).strip()
+                title = ""
+            if eid in valid:
+                ents.append({"id": eid, "title": title})
         out.append({
             "name": name,
             "icon": str(g.get("icon") or "▪"),
@@ -462,7 +473,7 @@ def _assigned_ids() -> set[str]:
     """Все entity_id, попавшие в пользовательские группы (для исключения из «остального»)."""
     out: set[str] = set()
     for g in _tg_groups():
-        out.update(g["entities"])
+        out.update(it["id"] for it in g["entities"])
     return out
 
 
@@ -529,28 +540,30 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
     if idx >= len(groups):
         return {"text": "❌ Группа не найдена", "buttons": [{"text": "◀ Назад", "action": "hamain"}]}
     g = groups[idx]
-    ids = g["entities"]
-    if not ids:
+    ents = g["entities"]
+    if not ents:
         return {"text": f"{g['icon']} <b>{g['name']}</b>\n\nПусто — добавьте сущности в конфигураторе.",
                 "buttons": [{"text": "◀ Назад", "action": "hamain"}]}
-    chunk = _page_of(ids, page)
-    lines = [f"{g['icon']} <b>{g['name']}</b> ({len(ids)}):"]
-    for eid in chunk:
-        e = _find(eid)
+    chunk = _page_of(ents, page)
+    lines = [f"{g['icon']} <b>{g['name']}</b> ({len(ents)}):"]
+    for it in chunk:
+        e = _find(it["id"])
         if e:
-            lines.append(f"{e['icon']} {e['name']} — <b>{e['state_str']}</b>")
+            title = it["title"] or e["name"]
+            lines.append(f"{e['icon']} {title} — <b>{e['state_str']}</b>")
     buttons = []
-    for eid in chunk:
-        e = _find(eid)
+    for it in chunk:
+        e = _find(it["id"])
         if not e:
             continue
+        title = it["title"] or e["name"]
         if e["domain"] in _TOGGLE_DOMAINS:
             act = "on" if e["state"] != "on" else "off"
             mark = "🟡" if e["state"] == "on" else "⚫"
-            buttons.append({"text": f"{mark} {e['name'][:40]}",
-                            "action": f"hat:{_enc(eid)}:{act}:g{idx}:{page}"})
+            buttons.append({"text": f"{mark} {title[:40]}",
+                            "action": f"hat:{_enc(e['entity_id'])}:{act}:g{idx}:{page}"})
         else:
-            buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
+            buttons.append({"text": f"{e['icon']} {title[:40]}", "action": f"had:{_enc(e['entity_id'])}"})
     nav = []
     if page > 0:
         nav.append({"text": "◀", "action": f"hag:{idx}:{page - 1}"})
@@ -611,7 +624,7 @@ async def _menu_entity(entity_id: str) -> dict:
     # «Назад» ведёт в группу (если сущность в группе) или в раздел домена
     back = f"hal:{domain}"
     for i, g in enumerate(_tg_groups()):
-        if entity_id in g["entities"]:
+        if any(it["id"] == entity_id for it in g["entities"]):
             back = f"hag:{i}"
             break
     buttons.append({"text": "◀ Назад", "action": back})
