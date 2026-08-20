@@ -13,12 +13,14 @@ Home Assistant Plugin — умный дом в Home.Media v4.
 Контракт меню для бота:
     POST {url}/bot/callback  {"action": "...", "user_id": N, "text": "..."}
     → {"text": "...", "buttons": [{"text": "...", "action": "..."}]}
-Callback_data ботов Telegram принимает только [a-zA-Z0-9_-], поэтому
-entity_id шифруются в base64-urlsafe без паддинга.
+Callback_data ботов Telegram принимает только [a-zA-Z0-9_-], поэтому entity_id
+кодируются коротким hex-хэшем SHA-1 (10 символов) — base64 раздувал код до 39+,
+и с префиксом "pl:{plugin_id}:" выходил за лимит Telegram в 64 байта.
 """
 from __future__ import annotations
 
 import base64
+import hashlib
 import time
 from datetime import datetime, UTC
 from pathlib import Path
@@ -369,14 +371,26 @@ async def _control(entity_id: str, action: str, value: str = "") -> tuple[bool, 
 
 
 # ── Telegram-коды (callback_data: только [a-zA-Z0-9_-]) ──────────────────────
+# Лимит callback_data Telegram — 64 байта, а хаб добавляет префикс "pl:{plugin_id}:",
+# поэтому короткий hex-хэш (10 символов) вместо base64.
 
 def _enc(entity_id: str) -> str:
-    return base64.urlsafe_b64encode(entity_id.encode("utf-8")).decode("ascii").rstrip("=")
+    return hashlib.sha1(entity_id.encode("utf-8")).hexdigest()[:10]
 
 
-def _dec(code: str) -> str:
-    pad = "=" * (-len(code) % 4)
-    return base64.urlsafe_b64decode(code + pad).decode("utf-8")
+def _dec(code: str) -> str | None:
+    # новый формат: hex-хэш
+    if len(code) == 10 and all(c in "0123456789abcdef" for c in code):
+        for e in _entities():
+            if _enc(e["entity_id"]) == code:
+                return e["entity_id"]
+        return None
+    # старый формат (base64) — для уже отправленных меню в чате
+    try:
+        pad = "=" * (-len(code) % 4)
+        return base64.urlsafe_b64decode(code + pad).decode("utf-8")
+    except Exception:
+        return None
 
 
 # ── Меню Telegram ─────────────────────────────────────────────────────────────
