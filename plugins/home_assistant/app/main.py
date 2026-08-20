@@ -564,13 +564,14 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
                             "action": f"hat:{_enc(e['entity_id'])}:{act}:g{idx}:{page}"})
         else:
             buttons.append({"text": f"{e['icon']} {title[:40]}", "action": f"had:{_enc(e['entity_id'])}"})
+    pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     nav = []
     if page > 0:
         nav.append({"text": "◀", "action": f"hag:{idx}:{page - 1}"})
     nav.append({"text": "◀ Назад", "action": "hamain"})
     if (page + 1) * PAGE_SIZE < len(ents):
         nav.append({"text": "▶", "action": f"hag:{idx}:{page + 1}"})
-    return {"text": "\n".join(lines), "buttons": buttons + [nav]}
+    return {"text": "\n".join(lines), "buttons": pairs + [nav]}
 
 
 async def _menu_entity(entity_id: str) -> dict:
@@ -658,13 +659,14 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
                             "action": f"hat:{_enc(eid)}:{act}:d{domain}:{page}"})
         else:
             buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
+    pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     nav = []
     if page > 0:
         nav.append({"text": "◀", "action": f"hal:{domain}:{page - 1}"})
     nav.append({"text": "◀ Назад", "action": "hamain"})
     if (page + 1) * PAGE_SIZE < len(ids):
         nav.append({"text": "▶", "action": f"hal:{domain}:{page + 1}"})
-    return {"text": "\n".join(lines), "buttons": buttons + [nav]}
+    return {"text": "\n".join(lines), "buttons": pairs + [nav]}
 
 
 # ── HTTP API ──────────────────────────────────────────────────────────────────
