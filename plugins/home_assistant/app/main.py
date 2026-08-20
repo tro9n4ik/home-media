@@ -760,7 +760,8 @@ async def bot_callback(body: dict):
                 menu = await _menu_domain_list(ctx[1:], page)
             else:
                 menu = await _menu_main()
-            menu["text"] = ("✅ " if ok else "❌ ") + msg + "\n\n" + menu["text"]
+            if not ok:
+                menu["text"] = "❌ " + msg + "\n\n" + menu["text"]
             return menu
         if action.startswith("hac:"):
             parts = action.split(":")
