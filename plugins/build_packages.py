@@ -21,6 +21,10 @@ PLUGINS_ROOT = Path(__file__).resolve().parent
 IGNORED_DIRS = {".venv", "__pycache__", "data", "node_modules"}
 IGNORED_SUFFIXES = {".pyc", ".log", ".db"}
 
+# Фиксированная дата записей: .hm стабилен между сборками (иначе каждая
+# сборка меняет zip-таймстампы и рождает пустые диффы в git).
+FIXED_TIME = (2024, 1, 1, 0, 0, 0)
+
 
 def build_plugin(name: str) -> Path | None:
     src = PLUGINS_ROOT / name
@@ -46,7 +50,10 @@ def build_plugin(name: str) -> Path | None:
                 continue
             if file.suffix in IGNORED_SUFFIXES:
                 continue
-            zf.write(file, rel.as_posix())
+            zi = zipfile.ZipInfo(rel.as_posix(), date_time=FIXED_TIME)
+            zi.compress_type = zipfile.ZIP_DEFLATED
+            zi.external_attr = 0o644 << 16
+            zf.writestr(zi, file.read_bytes())
 
     size = out.stat().st_size / 1024
     print(f"OK {name}.hm  ({size:.1f} KB)")
