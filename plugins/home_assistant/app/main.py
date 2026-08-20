@@ -19,6 +19,7 @@ Callback_data ботов Telegram принимает только [a-zA-Z0-9_-],
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import time
@@ -247,6 +248,24 @@ def _find(entity_id: str) -> dict | None:
 
 
 # ── Управление ────────────────────────────────────────────────────────────────
+
+async def _sync_after(entity_id: str, action: str) -> None:
+    """После управления ждём, пока HA реально обновит состояние (как в bot.py —
+    пауза после вызова сервиса), иначе меню покажет устаревший статус."""
+    pre = _find(entity_id)
+    want = {"on": "on", "off": "off"}.get(action)
+    for _ in range(8):
+        await asyncio.sleep(0.4)
+        await _refresh()
+        e = _find(entity_id)
+        if not e:
+            return
+        if want is not None:
+            if e["state"] == want:
+                return
+        elif pre is None or e["state"] != pre["state"]:
+            return
+
 
 _CONTROL_DOMAINS = {
     "light": ("on", "off", "toggle"),
@@ -716,7 +735,10 @@ async def bot_callback(body: dict):
             page = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
             eid = _dec(code)
             ok, msg = await _control(eid, act, "")
-            await _refresh()
+            if ok:
+                await _sync_after(eid, act)
+            else:
+                await _refresh()
             if ctx.startswith("g") and ctx[1:].isdigit():
                 menu = await _menu_group(int(ctx[1:]), page)
             elif ctx.startswith("d"):
@@ -731,7 +753,10 @@ async def bot_callback(body: dict):
             value = parts[3] if len(parts) > 3 else ""
             eid = _dec(code)
             ok, msg = await _control(eid, act, value)
-            await _refresh()
+            if ok:
+                await _sync_after(eid, act)
+            else:
+                await _refresh()
             menu = await _menu_entity(eid)
             head = "✅ " if ok else "❌ "
             menu["text"] = head + msg + "\n\n" + menu["text"]
