@@ -568,7 +568,7 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
     if page > 0:
         nav.append({"text": "◀", "action": f"hag:{idx}:{page - 1}"})
     nav.append({"text": "◀ Назад", "action": "hamain"})
-    if (page + 1) * PAGE_SIZE < len(ids):
+    if (page + 1) * PAGE_SIZE < len(ents):
         nav.append({"text": "▶", "action": f"hag:{idx}:{page + 1}"})
     return {"text": "\n".join(lines), "buttons": buttons + [nav]}
 
