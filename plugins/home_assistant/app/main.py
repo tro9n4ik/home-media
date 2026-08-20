@@ -405,6 +405,10 @@ _DOMAIN_SECTIONS = [
     ("lock", "🔒 Замки"),
 ]
 
+# Домены с базовым on/off: в списках групп/разделов — однокнопочный тумблер
+# (нажатие сразу переключает, как в старом bot.py), без диалогового меню.
+_TOGGLE_DOMAINS = ("light", "switch", "input_boolean", "automation", "script", "fan")
+
 
 _DOMAIN_LABELS = {
     "light": "Свет", "climate": "Климат", "switch": "Переключатели",
@@ -519,7 +523,14 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
     buttons = []
     for eid in chunk:
         e = _find(eid)
-        if e:
+        if not e:
+            continue
+        if e["domain"] in _TOGGLE_DOMAINS:
+            act = "on" if e["state"] != "on" else "off"
+            mark = "🟡" if e["state"] == "on" else "⚫"
+            buttons.append({"text": f"{mark} {e['name'][:40]}",
+                            "action": f"hat:{_enc(eid)}:{act}:g{idx}:{page}"})
+        else:
             buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
     nav = []
     if page > 0:
@@ -606,7 +617,14 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
     buttons = []
     for eid in chunk:
         e = _find(eid)
-        if e:
+        if not e:
+            continue
+        if e["domain"] in _TOGGLE_DOMAINS:
+            act = "on" if e["state"] != "on" else "off"
+            mark = "🟡" if e["state"] == "on" else "⚫"
+            buttons.append({"text": f"{mark} {e['name'][:40]}",
+                            "action": f"hat:{_enc(eid)}:{act}:d{domain}:{page}"})
+        else:
             buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
     nav = []
     if page > 0:
@@ -690,6 +708,23 @@ async def bot_callback(body: dict):
             return await _menu_domain_list(domain, page)
         if action.startswith("had:"):
             return await _menu_entity(_dec(action.split(":", 1)[1]))
+        if action.startswith("hat:"):
+            # прямой тумблер из списка: переключаем и перерисовываем тот же список
+            parts = action.split(":")
+            code, act = parts[1], parts[2]
+            ctx = parts[3] if len(parts) > 3 else ""
+            page = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
+            eid = _dec(code)
+            ok, msg = await _control(eid, act, "")
+            await _refresh()
+            if ctx.startswith("g") and ctx[1:].isdigit():
+                menu = await _menu_group(int(ctx[1:]), page)
+            elif ctx.startswith("d"):
+                menu = await _menu_domain_list(ctx[1:], page)
+            else:
+                menu = await _menu_main()
+            menu["text"] = ("✅ " if ok else "❌ ") + msg + "\n\n" + menu["text"]
+            return menu
         if action.startswith("hac:"):
             parts = action.split(":")
             code, act = parts[1], parts[2]
