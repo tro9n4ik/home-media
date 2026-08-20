@@ -3,44 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Display:wght@400;500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <title>Умный дом — Home Assistant</title>
 <style>
 :root {
-  --bg: #0a0e17;
-  --panel: rgba(23, 30, 46, .72);
-  --panel2: #161d2e;
-  --panel3: #1f2940;
-  --line: #232e45;
-  --line2: #33415f;
-  --txt: #e9eef7;
-  --txt2: #9aa7bd;
-  --txt3: #5d6a84;
-  --cyan: #4cc9f0;
-  --violet: #8b5cf6;
-  --pink: #ec4899;
-  --ok: #34d399;
-  --bad: #f87171;
-  --warn: #fbbf24;
-  --grad: linear-gradient(135deg, #4cc9f0, #8b5cf6 55%, #ec4899);
-  --r: 14px;
+  --bg: #121316;
+  --panel: #0D0E11;
+  --panel2: #1E2022;
+  --panel3: #282A2D;
+  --line: #43474E;
+  --line2: #8E9099;
+  --txt: #E3E2E6;
+  --txt2: #C4C6CF;
+  --txt3: #8E9099;
+  --cyan: #A9C7FF;
+  --violet: #DABCE4;
+  --pink: #DABCE4;
+  --ok: #8DD9A0;
+  --bad: #FFB4AB;
+  --warn: #F5C144;
+  --grad: linear-gradient(135deg, #00468A, #54405F);
+  --r: 16px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scrollbar-color: var(--line2) transparent; }
 body {
   background: var(--bg); color: var(--txt); min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
-  background-image:
-    radial-gradient(1000px 500px at 85% -10%, rgba(139,92,246,.16), transparent 60%),
-    radial-gradient(900px 460px at -10% 0%, rgba(76,201,240,.13), transparent 55%);
-  background-attachment: fixed;
 }
 body::before {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(900px 500px at 50% 0%, #000 20%, transparent 75%);
+  content: none; position: fixed; inset: 0; pointer-events: none; z-index: 0;
 }
 .wrap { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 26px 22px 60px; }
 header { display: flex; align-items: center; gap: 14px; }
@@ -49,7 +44,7 @@ header { display: flex; align-items: center; gap: 14px; }
   display: flex; align-items: center; justify-content: center; font-size: 23px;
   box-shadow: 0 8px 26px rgba(139,92,246,.45); flex: none;
 }
-h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+h1 { font-family: 'Google Sans Display', 'Roboto', sans-serif; font-size: 22px; font-weight: 400; letter-spacing: 0; }
 .sub { color: var(--txt2); font-size: 12.5px; margin-top: 2px; }
 .topbar { display: flex; align-items: center; gap: 10px; margin: 18px 0 16px; flex-wrap: wrap; }
 .pill {
@@ -72,8 +67,8 @@ h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
 .btn:hover { background: var(--panel3); border-color: var(--line2); transform: translateY(-1px); }
 .btn:active { transform: scale(.97); }
 .btn.primary {
-  background: var(--grad); border: none; color: #fff;
-  box-shadow: 0 6px 18px rgba(139,92,246,.4);
+  background: var(--cyan); color: #00315D; border: none;
+  box-shadow: none;
 }
 .btn.primary:hover { filter: brightness(1.12); }
 .btn.danger { color: var(--bad); border-color: rgba(248,113,113,.32); }
@@ -87,7 +82,7 @@ h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
   transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 7px;
 }
 .tab:hover { color: var(--txt2); }
-.tab.on { background: var(--grad); color: #fff; box-shadow: 0 4px 14px rgba(139,92,246,.35); }
+.tab.on { background: var(--cyan); color: #00315D; box-shadow: none; }
 .card {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
   padding: 14px 16px; margin-bottom: 10px; backdrop-filter: blur(8px);

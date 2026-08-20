@@ -1,46 +1,46 @@
-import { NavLink, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import {
-  LayoutGrid, Tag, Search, Settings2,
-  LogOut, Home, BookMarked, Plug, ScrollText
+  LayoutGrid, Puzzle, Settings2, ScrollText, LogOut, Plus,
+  Home, BookMarked, Search, Plug
 } from 'lucide-react'
 import { usePluginPages } from '../../hooks/usePluginPages'
 import { api } from '../../lib/api'
 
 const ICON_MAP = {
-  torrent:         () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-  prowlarr:        () => <Search size={16} />,
-  home_assistant:  () => <Home size={16} />,
-  watchlist:       () => <BookMarked size={16} />,
+  torrent:         () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  prowlarr:        () => <Search size={20} />,
+  home_assistant:  () => <Home size={20} />,
+  watchlist:       () => <BookMarked size={20} />,
 }
 
 function PluginIcon({ pluginId }) {
   const Ic = ICON_MAP[pluginId]
   if (Ic) return <Ic />
-  return <Plug size={16} />
+  return <Plug size={20} />
 }
 
 const LED_COLOR = {
-  running: 'var(--green)',
-  starting: 'var(--amber)',
-  degraded: 'var(--amber)',
-  installing: 'var(--amber)',
-  stopped: 'var(--ink-faint)',
-  failed: 'var(--red)',
-  error: 'var(--red)',
+  running: 'var(--success)',
+  starting: 'var(--warning)',
+  degraded: 'var(--warning)',
+  installing: 'var(--warning)',
+  stopped: 'var(--outline)',
+  failed: 'var(--error)',
+  error: 'var(--error)',
 }
 
 const MAIN_SLOTS = [
-  { to: '/admin/',      label: 'Дашборд',  icon: LayoutGrid },
-  { to: '/admin/plugins', label: 'Плагины', icon: Tag },
-  { to: '/admin/logs',  label: 'Логи',     icon: ScrollText },
-  { to: '/admin/settings', label: 'Опции',  icon: Settings2 },
+  { to: '/admin/',         label: 'Дашборд',  icon: LayoutGrid },
+  { to: '/admin/plugins',  label: 'Плагины',  icon: Puzzle },
+  { to: '/admin/logs',     label: 'Логи',     icon: ScrollText },
+  { to: '/admin/settings', label: 'Опции',    icon: Settings2 },
 ]
 
 export default function Sidebar() {
   const pluginPages = usePluginPages()
   const location = useLocation()
-  const [theme] = useState(() => 'dark')
+  const nav = useNavigate()
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark')
@@ -50,53 +50,45 @@ export default function Sidebar() {
 
   const logout = () => api.logout().finally(() => { window.location.href = '/admin/login' })
 
-  const slotNum = (i) => String(i + 1).padStart(2, '0')
-
   return (
-    <nav style={{
-      background: 'var(--panel)', borderRight: '1px solid var(--line)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '20px 0', gap: 6, position: 'sticky', top: 0, height: '100vh',
-    }}>
-      <div className="rail-mark">HM·NAS</div>
+    <nav className="rail">
+      <div className="rail-logo">HM</div>
+      <button className="rail-fab" title="Установить плагин" onClick={() => nav('/admin/plugins')}>
+        <Plus size={24} />
+      </button>
 
-      {MAIN_SLOTS.map((s, i) => {
+      {MAIN_SLOTS.map(s => {
         const isActive = s.to === '/admin/'
           ? location.pathname === '/admin/'
           : location.pathname.startsWith(s.to)
         const Icon = s.icon
         return (
-          <NavLink key={s.to} to={s.to} className={`slot ${isActive ? 'active' : ''}`} title={s.label}>
-            <span className="num">{slotNum(i)}</span>
-            <Icon size={17} />
-            <span className="led" />
+          <NavLink key={s.to} to={s.to} className={`rail-item ${isActive ? 'active' : ''}`} title={s.label}>
+            <div className="indicator"><Icon size={20} /></div>
+            <span className="label">{s.label}</span>
           </NavLink>
         )
       })}
 
-      {pluginPages.length > 0 && (
-        pluginPages.map((page, i) => {
-          const isActive = location.pathname.startsWith(page.path)
-          return (
-            <NavLink key={page.path} to={page.path} className={`slot ${isActive ? 'active' : ''}`} title={page.title || page.plugin_name}>
-              <span className="num">{slotNum(i + MAIN_SLOTS.length)}</span>
+      {pluginPages.map(page => {
+        const isActive = location.pathname.startsWith(page.path)
+        return (
+          <NavLink key={page.path} to={page.path} className={`rail-item ${isActive ? 'active' : ''}`} title={page.title || page.plugin_name}>
+            <div className="indicator">
               <PluginIcon pluginId={page.plugin_id} />
-              <span className="led" style={{ background: LED_COLOR[page.status] || 'var(--ink-faint)', boxShadow: page.status === 'running' ? '0 0 6px var(--green)' : undefined }} />
-            </NavLink>
-          )
-        })
-      )}
+              <span className="dot" style={{ background: LED_COLOR[page.status] || 'var(--outline)' }} />
+            </div>
+            <span className="label" style={{ maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {page.title || page.plugin_name}
+            </span>
+          </NavLink>
+        )
+      })}
 
-      <div style={{ flex: 1 }} />
-      <button
-        onClick={logout}
-        className="slot"
-        title="Выйти"
-        style={{ border: 'none', background: 'transparent' }}
-      >
-        <span className="num">XX</span>
-        <LogOut size={17} />
-        <span className="led" style={{ background: 'transparent' }} />
+      <div className="rail-spacer" />
+      <button onClick={logout} className="rail-item" title="Выйти">
+        <div className="indicator"><LogOut size={20} /></div>
+        <span className="label">Выход</span>
       </button>
     </nav>
   )

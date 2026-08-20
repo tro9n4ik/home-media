@@ -36,16 +36,16 @@ export default function Setup() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
-            width: 52, height: 52, borderRadius: 10, margin: '0 auto 14px',
-            background: 'var(--panel-raised)', border: '1px solid var(--line)',
+            width: 52, height: 52, borderRadius: 16, margin: '0 auto 14px',
+            background: 'var(--primary-container)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 18, color: 'var(--amber)',
+            fontFamily: 'var(--disp)', fontWeight: 500, fontSize: 20, color: 'var(--on-primary-container)',
           }}>HM</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+          <div style={{ fontFamily: 'var(--disp)', fontSize: 22, fontWeight: 400 }}>
             Первичная настройка
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-faint)', marginTop: 6, letterSpacing: '.08em' }}>
-            CREATE ADMIN ACCOUNT
+          <div style={{ fontSize: 13, color: 'var(--ink-faint)', marginTop: 6 }}>
+            создайте учётную запись администратора
           </div>
         </div>
 

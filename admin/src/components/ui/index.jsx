@@ -4,7 +4,7 @@ export function Spinner({ size = 20 }) {
   return (
     <Loader2 size={size} style={{
       animation: 'spin .7s linear infinite',
-      color: 'var(--amber)',
+      color: 'var(--primary)',
       flexShrink: 0,
     }} />
   )
@@ -115,10 +115,10 @@ export function showToast(msg, type = 'ok', dur = 3000) {
   const c = colors[type] || colors.info
   const t = document.createElement('div')
   t.style.cssText = `
-    padding:12px 18px;border-radius:10px;font-size:12.5px;font-weight:500;
-    font-family:var(--mono);color:var(--ink);background:var(--panel-raised);
-    border:1px solid ${c};box-shadow:var(--shadow);
-    animation:toastIn .2s;border-left:3px solid ${c};max-width:360px;
+    padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;
+    font-family:var(--body);color:var(--ink);background:var(--panel-raised);
+    border:1px solid ${c};box-shadow:var(--elev2);
+    animation:toastIn .2s;border-left:4px solid ${c};max-width:360px;
   `
   t.textContent = msg
   _tc.appendChild(t)

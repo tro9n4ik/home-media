@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Play, Square, Trash2, ExternalLink, Puzzle, RefreshCw, Loader2, Power, AlertCircle } from 'lucide-react'
+import { Upload, Play, Square, Trash2, ExternalLink, Puzzle, RefreshCw, Loader2, Power, AlertCircle, MoreVertical } from 'lucide-react'
 import { api } from '../lib/api'
-import { Btn, Spinner, Empty, Section, showToast } from '../components/ui'
+import { Btn, Spinner, Section, showToast } from '../components/ui'
 
-const STATUS_BLADE = {
-  running: 'st-run', starting: 'st-deg', degraded: 'st-deg', installing: 'st-deg',
-  installed: 'st-off', stopped: 'st-off', failed: 'st-err', error: 'st-err',
+const STATUS_CHIP = {
+  running: 'ok', starting: 'warn', degraded: 'warn', installing: 'warn',
+  installed: 'off', stopped: 'off', failed: 'err', error: 'err',
 }
 const STATUS_LABEL = {
-  running: 'RUN', starting: 'START', degraded: 'DEGRADED', installing: 'INSTALL',
-  installed: 'STOP', stopped: 'STOP', failed: 'ERR', error: 'ERR',
+  running: 'running', starting: 'starting', degraded: 'degraded', installing: 'installing',
+  installed: 'stopped', stopped: 'stopped', failed: 'error', error: 'error',
 }
 const IS_BUSY = s => ['starting', 'installing'].includes(s)
 
@@ -114,12 +114,15 @@ export default function Plugins() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeIn .2s' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-        <Section title={`Установленные модули · ${plugins.length} шт`} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingBottom: 4 }}>
+        <div className="section-head" style={{ marginBottom: 0 }}>
+          <h2>Плагины</h2>
+          <span className="count" style={{ marginLeft: 12 }}>{plugins.length} установлено</span>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Btn size="sm" variant="ghost" onClick={load}><RefreshCw size={13} /></Btn>
+          <button className="btn sm" onClick={load} title="Обновить"><RefreshCw size={14} /></button>
           <label className="install-btn" style={{ cursor: installing ? 'not-allowed' : 'pointer' }}>
-            {installing ? <Spinner size={14} /> : <Upload size={14} />}
+            {installing ? <Spinner size={16} /> : <Upload size={18} />}
             {installing ? 'Установка...' : 'Установить .hm пакет'}
             <input ref={fileRef} type="file" accept=".hm,.zip" style={{ display: 'none' }}
               disabled={installing} onChange={e => install(e.target.files[0])} />
@@ -131,85 +134,86 @@ export default function Plugins() {
         ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner /></div>
         : plugins.length === 0
           ? (
-            <div className="panel-card">
-              <Empty icon={<Puzzle size={44} strokeWidth={1} />} text="Нет установленных плагинов" />
-              <div style={{ textAlign: 'center', paddingBottom: 28, color: 'var(--ink-faint)', fontSize: 13, fontFamily: 'var(--mono)' }}>
-                Нажмите «Установить .hm пакет» чтобы добавить плагин
+            <div className="empty-state">
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, opacity: .4 }}>
+                <Puzzle size={44} strokeWidth={1} />
               </div>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Плагины не установлены</div>
+              <div className="hint">Нажмите «Установить .hm пакет» чтобы добавить плагин</div>
             </div>
           )
           : (
-            <div className="blades">
-              {plugins.map(p => (
-                <div key={p.plugin_id} className={`blade ${STATUS_BLADE[p.status] || 'st-off'}`} style={p.enabled ? undefined : { opacity: .65 }}>
-
-                  {/* Иконка */}
-                  <div className="blade-icon" onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}
-                    style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
-                    {IS_BUSY(p.status)
-                      ? <Loader2 size={18} style={{ animation: 'spin .7s linear infinite', color: 'var(--amber)' }} />
-                      : <Puzzle size={18} strokeWidth={1.5} />}
-                  </div>
-
-                  {/* Info */}
-                  <div className="blade-info">
-                    <div className="blade-name">
-                      <span style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default', color: p.ui_pages?.[0] ? 'var(--ink)' : 'var(--ink)' }}
-                        onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}>
-                        {p.name}
-                      </span>
-                      <span className="status-tag"><span className="d" />{STATUS_LABEL[p.status] || p.status}</span>
-                      {!p.enabled && <span className="status-tag st-off"><Power size={9} /> no-autostart</span>}
+            <div className="plugin-list">
+              {plugins.map(p => {
+                const disabled = busy[p.plugin_id] || IS_BUSY(p.status)
+                return (
+                  <div key={p.plugin_id} className="plugin-card" style={p.enabled ? undefined : { opacity: .65 }}>
+                    <div className="plugin-avatar" onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}
+                      style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
+                      {IS_BUSY(p.status)
+                        ? <Loader2 size={20} style={{ animation: 'spin .7s linear infinite' }} />
+                        : <Puzzle size={20} strokeWidth={1.5} />}
                     </div>
-                    <div className="blade-desc" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-faint)' }}>v{p.version}</span>
-                      {p.assigned_port && (
-                        <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-faint)' }}>:{p.assigned_port}</span>
-                      )}
-                      <span>{p.description}</span>
-                    </div>
-                    {p.last_error && (
-                      <div className="errbox" style={{ marginTop: 8 }}>
-                        <AlertCircle size={13} />
-                        <span style={{ wordBreak: 'break-word' }}>{p.last_error}</span>
+
+                    <div className="plugin-info">
+                      <div className="plugin-name">
+                        <span onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}
+                          style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
+                          {p.name}
+                        </span>
+                        <span className={`chip ${STATUS_CHIP[p.status] || 'off'}`}>
+                          <span className="dot" />{STATUS_LABEL[p.status] || p.status}
+                        </span>
+                        {!p.enabled && <span className="chip off"><Power size={11} /> no-autostart</span>}
                       </div>
-                    )}
-                  </div>
+                      <div className="plugin-desc" style={{ display: 'flex', gap: 14, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>v{p.version}</span>
+                        {p.assigned_port && <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>:{p.assigned_port}</span>}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.description}</span>
+                      </div>
+                      {p.last_error && (
+                        <div className="errbox" style={{ marginTop: 8 }}>
+                          <AlertCircle size={13} />
+                          <span style={{ wordBreak: 'break-word' }}>{p.last_error}</span>
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Actions */}
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    <button
-                      className="blade-toggle on"
-                      title={p.enabled ? 'Автозапуск включён' : 'Автозапуск выключен'}
-                      onClick={() => toggleEnabled(p)}
-                      disabled={busy[p.plugin_id] || IS_BUSY(p.status)}
-                    />
-                    {p.ui_pages?.[0] && (
-                      <button className="icon-btn" onClick={() => nav(p.ui_pages[0].path)} title="Открыть интерфейс">
-                        <ExternalLink size={14} />
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                      <button className={`switch ${p.enabled ? 'on' : 'off'}`}
+                        title={p.enabled ? 'Автозапуск включён' : 'Автозапуск выключен'}
+                        onClick={() => toggleEnabled(p)}
+                        disabled={disabled} />
+                      {p.ui_pages?.[0] && (
+                        <button className="icon-btn" onClick={() => nav(p.ui_pages[0].path)} title="Открыть интерфейс">
+                          <ExternalLink size={16} />
+                        </button>
+                      )}
+                      {p.status === 'running' && (
+                        <button className="icon-btn" onClick={() => restart(p)} disabled={busy[p.plugin_id]} title="Перезапустить">
+                          <RefreshCw size={15} />
+                        </button>
+                      )}
+                      <Btn size="sm"
+                        variant={['running', 'starting', 'degraded'].includes(p.status) ? 'default' : 'success'}
+                        onClick={() => toggle(p)}
+                        disabled={disabled || !p.enabled}>
+                        {busy[p.plugin_id]
+                          ? <Loader2 size={12} style={{ animation: 'spin .7s linear infinite' }} />
+                          : ['running', 'starting', 'degraded'].includes(p.status)
+                            ? <><Square size={12} /> Стоп</>
+                            : <><Play size={12} /> Старт</>}
+                      </Btn>
+                      <Btn size="sm" variant="danger" onClick={() => remove(p)}>
+                        <Trash2 size={14} />
+                      </Btn>
+                      <button className="icon-btn" title="Ещё">
+                        <MoreVertical size={18} />
                       </button>
-                    )}
-                    {p.status === 'running' && (
-                      <button className="icon-btn" onClick={() => restart(p)} disabled={busy[p.plugin_id]} title="Перезапустить">
-                        <RefreshCw size={13} />
-                      </button>
-                    )}
-                    <Btn size="sm"
-                      variant={['running', 'starting', 'degraded'].includes(p.status) ? 'default' : 'success'}
-                      onClick={() => toggle(p)}
-                      disabled={busy[p.plugin_id] || IS_BUSY(p.status) || !p.enabled}>
-                      {busy[p.plugin_id]
-                        ? <Loader2 size={12} style={{ animation: 'spin .7s linear infinite' }} />
-                        : ['running', 'starting', 'degraded'].includes(p.status)
-                          ? <><Square size={12} /> Стоп</>
-                          : <><Play size={12} /> Старт</>}
-                    </Btn>
-                    <Btn size="sm" variant="danger" onClick={() => remove(p)}>
-                      <Trash2 size={13} />
-                    </Btn>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )
       }

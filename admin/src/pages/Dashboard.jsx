@@ -1,42 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Cpu, MemoryStick, HardDrive, Puzzle, ArrowRight } from 'lucide-react'
+import { Cpu, MemoryStick, HardDrive, Send, Download, Home, Puzzle, Upload, Loader2, MoreVertical } from 'lucide-react'
 import { api } from '../lib/api'
-import { Spinner, StatusDot, Btn, Section } from '../components/ui'
+import { Spinner, showToast } from '../components/ui'
 
-const STATUS_BLADE = {
-  running: 'st-run', starting: 'st-deg', degraded: 'st-deg', installing: 'st-deg',
-  installed: 'st-off', stopped: 'st-off', failed: 'st-err', error: 'st-err',
+const STATUS_CHIP = {
+  running: 'ok', starting: 'warn', degraded: 'warn', installing: 'warn',
+  installed: 'off', stopped: 'off', failed: 'err', error: 'err',
 }
 const STATUS_TEXT = {
-  running: 'RUN', starting: 'START', degraded: 'DEGRADED', installing: 'INSTALL',
-  installed: 'STOP', stopped: 'STOP', failed: 'ERR', error: 'ERR',
-}
-const STATUS_DOT = {
-  running: 'var(--green)', starting: 'var(--amber)', degraded: 'var(--amber)', installing: 'var(--amber)',
-  installed: 'var(--ink-faint)', stopped: 'var(--ink-faint)', failed: 'var(--red)', error: 'var(--red)',
+  running: 'running', starting: 'starting', degraded: 'degraded', installing: 'installing',
+  installed: 'stopped', stopped: 'stopped', failed: 'error', error: 'error',
 }
 
-function Gauge({ label, value, segments, color }) {
-  const filled = Math.max(0, Math.min(segments, 10))
-  return (
-    <div className="gauge">
-      <div className="l">{label}</div>
-      <div className="v">{value}</div>
-      <div className="bars">
-        {Array.from({ length: 10 }, (_, i) => (
-          <i key={i} className={i < filled ? 'on' : ''} style={i < filled && color ? { background: color } : undefined} />
-        ))}
-      </div>
-    </div>
-  )
+const PLUGIN_ICON = {
+  telegram_bot: Send,
+  torrents: Download,
+  home_assistant: Home,
 }
 
-const PATCH_COLORS = ['var(--green)', 'var(--amber)', 'var(--blue)', 'var(--yellow)']
+const PATCH_COLORS = ['var(--primary)', 'var(--tertiary)', 'var(--secondary)', 'var(--warning)']
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(null)
   const [plugins, setPlugins] = useState([])
+  const [busy, setBusy] = useState({})
   const [loading, setLoading] = useState(true)
   const nav = useNavigate()
 
@@ -51,109 +39,176 @@ export default function Dashboard() {
     return () => clearInterval(id)
   }, [])
 
+  const toggle = async (p) => {
+    const isActive = ['running', 'starting', 'degraded'].includes(p.status)
+    if (!p.enabled && isActive) return
+    setBusy(b => ({ ...b, [p.plugin_id]: true }))
+    try {
+      if (isActive) {
+        await api.pluginStop(p.plugin_id)
+        showToast(`${p.name} остановлен`)
+      } else {
+        await api.pluginStart(p.plugin_id)
+        showToast(`${p.name} запускается...`)
+      }
+    } catch (e) { showToast(e.message, 'err') }
+    setBusy(b => ({ ...b, [p.plugin_id]: false }))
+    setTimeout(() => api.plugins().then(setPlugins).catch(() => {}), 900)
+  }
+
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner /></div>
 
   const running = plugins.filter(p => p.status === 'running').length
   const START_PORT = 8100
   const END_PORT = 8200
   const TOTAL = END_PORT - START_PORT + 1
-  const PORT_ROWS = 20
 
-  // Карта занятых портов: порт → {plugin, color}
   const portMap = {}
   plugins.forEach((p, i) => {
-    const port = p.assigned_port
-    if (port) portMap[port] = { plugin: p, color: PATCH_COLORS[i % PATCH_COLORS.length] }
+    if (p.assigned_port) portMap[p.assigned_port] = { plugin: p, color: PATCH_COLORS[i % PATCH_COLORS.length] }
   })
   const busyCount = Object.keys(portMap).length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+    <div className="content" style={{ padding: 0 }}>
       {metrics && (
-        <Section title="Показания системы">
-          <div className="gauges">
-            <Gauge label="CPU" value={`${metrics.cpu_percent}%`} segments={Math.round(metrics.cpu_percent / 10)} />
-            <Gauge label={`RAM · ${metrics.ram_used_gb} / ${metrics.ram_total_gb} ГБ`} value={`${metrics.ram_percent}%`} segments={Math.round(metrics.ram_percent / 10)} />
-            <Gauge label={`Диск · ${metrics.disk_used_gb} / ${metrics.disk_total_gb} ГБ`} value={`${metrics.disk_percent}%`} segments={Math.round(metrics.disk_percent / 10)} />
-            <Gauge label="Модули" value={`${running} / ${plugins.length}`} segments={plugins.length ? Math.round(running / plugins.length * 10) : 0} />
-          </div>
-        </Section>
-      )}
-
-      <Section title={`Патч-панель · порты ${START_PORT}–${END_PORT}`} right={`${TOTAL - busyCount} своб. / ${TOTAL}`}>
-        <div className="patch">
-          <div className="patch-head">
-            <span className="t">Пул портов плагинов</span>
-            <span className="r">{Object.keys(portMap).length} занято</span>
-          </div>
-          {Array.from({ length: Math.ceil(TOTAL / PORT_ROWS) }, (_, r) => (
-            <div className="patch-row" key={r}>
-              <div className="rowlabel">{START_PORT + r * PORT_ROWS}</div>
-              <div className="jacks">
-                {Array.from({ length: PORT_ROWS }, (_, c) => {
-                  const port = START_PORT + r * PORT_ROWS + c
-                  if (port > END_PORT) return null
-                  const owner = portMap[port]
-                  return (
-                    <div key={port} className={`jack ${owner ? 'busy' : ''}`} title={owner ? `${owner.plugin.name} · ${port}` : `${port} — свободно`}
-                      style={owner ? { color: owner.color } : undefined}>
-                      <span className="led" style={owner ? { background: owner.color } : undefined} />
-                    </div>
-                  )
-                })}
+        <div>
+          <div className="metrics">
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">CPU</span>
+                <span className="metric-icon"><Cpu size={18} /></span>
+              </div>
+              <div className="metric-value">{metrics.cpu_percent}%</div>
+              <div className="metric-track">
+                <div className="metric-fill" style={{ width: `${Math.min(100, metrics.cpu_percent)}%`, background: 'var(--primary)' }} />
               </div>
             </div>
-          ))}
-          <div className="patch-legend">
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">RAM</span>
+                <span className="metric-icon" style={{ background: 'var(--tertiary-container)', color: 'var(--on-tertiary-container)' }}><MemoryStick size={18} /></span>
+              </div>
+              <div className="metric-value">{metrics.ram_used_gb} / {metrics.ram_total_gb} ГБ</div>
+              <div className="metric-track">
+                <div className="metric-fill" style={{ width: `${Math.min(100, metrics.ram_percent)}%`, background: 'var(--tertiary)' }} />
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Диск</span>
+                <span className="metric-icon" style={{ background: 'var(--secondary-container)', color: 'var(--on-secondary-container)' }}><HardDrive size={18} /></span>
+              </div>
+              <div className="metric-value">{metrics.disk_percent}%</div>
+              <div className="metric-track">
+                <div className="metric-fill" style={{ width: `${Math.min(100, metrics.disk_percent)}%`, background: 'var(--secondary)' }} />
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-top">
+                <span className="metric-label">Плагины</span>
+                <span className="metric-icon" style={{ background: 'var(--success-container)', color: 'var(--on-success-container)' }}><Puzzle size={18} /></span>
+              </div>
+              <div className="metric-value">{running} / {plugins.length} активны</div>
+              <div className="metric-track">
+                <div className="metric-fill" style={{ width: plugins.length ? `${Math.round(running / plugins.length * 100)}%` : 0, background: 'var(--success)' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="portmap-card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span style={{ fontSize: 14, fontWeight: 500 }}>Карта портов</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--on-surface-variant)' }}>{START_PORT}–{END_PORT} · {busyCount} занято</span>
+          </div>
+          <div className="portmap-grid">
+            {Array.from({ length: TOTAL }, (_, i) => {
+              const port = START_PORT + i
+              const owner = portMap[port]
+              return <div key={port} className={`pcell ${owner ? 'busy' : ''}`}
+                title={owner ? `${owner.plugin.name} · ${port}` : `${port} — свободно`}
+                style={owner ? { background: owner.color } : undefined} />
+            })}
+          </div>
+          <div className="portmap-legend">
             {plugins.map((p, i) => p.assigned_port && (
-              <div className="pl-item" key={p.plugin_id}>
-                <span className="pl-dot" style={{ background: PATCH_COLORS[i % PATCH_COLORS.length] }} />
+              <div className="legend-item" key={p.plugin_id}>
+                <span className="legend-dot" style={{ background: PATCH_COLORS[i % PATCH_COLORS.length] }} />
                 {p.name} · {p.assigned_port}
               </div>
             ))}
-            <div className="pl-item"><span className="pl-dot" style={{ background: 'var(--panel-hi)', border: '1px solid var(--line)' }} />свободно</div>
+            <div className="legend-item">
+              <span className="legend-dot" style={{ background: 'var(--surface-container-high)' }} />
+              свободно
+            </div>
           </div>
         </div>
-      </Section>
+      </div>
 
-      {plugins.length === 0 ? (
-        <Section title="Установленные модули">
-          <div className="panel-card" style={{ padding: '48px 32px', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18, opacity: .3 }}>
+      <div>
+        <div className="section-head">
+          <h2>Плагины</h2>
+          <span className="count">{plugins.length} установлено</span>
+        </div>
+        {plugins.length === 0 ? (
+          <div className="empty-state">
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, opacity: .4 }}>
               <Puzzle size={52} strokeWidth={1} />
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--mono)', marginBottom: 8 }}>Модули не установлены</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-faint)', marginBottom: 22 }}>
-              Установите .hm пакеты чтобы начать работу
-            </div>
-            <Btn variant="primary" onClick={() => nav('/admin/plugins')}>
-              К модулям <ArrowRight size={14} />
-            </Btn>
+            <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Плагины не установлены</div>
+            <div className="hint">Установите .hm пакеты чтобы начать работу</div>
+            <button className="fab-ext" onClick={() => nav('/admin/plugins')}>
+              <Upload size={18} /> Установить плагин
+            </button>
           </div>
-        </Section>
-      ) : (
-        <Section title="Установленные модули" right={`${plugins.length} шт`}>
-          <div className="blades">
-            {plugins.map(p => (
-              <div key={p.plugin_id} className={`blade ${STATUS_BLADE[p.status] || 'st-off'}`} style={p.enabled ? undefined : { opacity: .6 }}>
-                <div className="blade-icon">
-                  {p.ui_pages?.[0] && p.status === 'running'
-                    ? <Cpu size={18} strokeWidth={1.5} style={{ cursor: 'pointer', color: 'var(--ink)' }} />
-                    : <Puzzle size={18} strokeWidth={1.5} />}
-                </div>
-                <div className="blade-info" onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)} style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
-                  <div className="blade-name">
-                    {p.name}
-                    <span className="status-tag"><span className="d" />{STATUS_TEXT[p.status] || p.status}</span>
+        ) : (
+          <div className="plugin-list" style={{ marginTop: 12 }}>
+            {plugins.map(p => {
+              const PIcon = PLUGIN_ICON[p.plugin_id] || Puzzle
+              const isBusy = ['starting', 'installing'].includes(p.status)
+              return (
+                <div key={p.plugin_id} className="plugin-card" style={p.enabled ? undefined : { opacity: .65 }}>
+                  <div className="plugin-avatar" onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}
+                    style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
+                    {isBusy
+                      ? <Loader2 size={20} style={{ animation: 'spin .7s linear infinite' }} />
+                      : <PIcon size={20} />}
                   </div>
-                  <div className="blade-desc">{p.description}</div>
+                  <div className="plugin-info" onClick={() => p.ui_pages?.[0] && nav(p.ui_pages[0].path)}
+                    style={{ cursor: p.ui_pages?.[0] ? 'pointer' : 'default' }}>
+                    <div className="plugin-name">
+                      {p.name}
+                      <span className={`chip ${STATUS_CHIP[p.status] || 'off'}`}>
+                        <span className="dot" />{STATUS_TEXT[p.status] || p.status}
+                      </span>
+                      {!p.enabled && <span className="chip off">no-autostart</span>}
+                    </div>
+                    <div className="plugin-desc">{p.description}</div>
+                  </div>
+                  <div className="plugin-port">{p.assigned_port ? `:${p.assigned_port}` : '—'}</div>
+                  <button className={`switch ${['running', 'starting', 'degraded'].includes(p.status) ? 'on' : 'off'}`}
+                    disabled={isBusy || busy[p.plugin_id]}
+                    onClick={() => toggle(p)}
+                    title={['running', 'starting', 'degraded'].includes(p.status) ? 'Остановить' : 'Запустить'} />
+                  <button className="icon-btn" onClick={() => nav('/admin/plugins')} title="Управление">
+                    <MoreVertical size={20} />
+                  </button>
                 </div>
-                <div className="blade-port">{p.assigned_port ? `:${p.assigned_port}` : '—'}</div>
-                <StatusDot status={p.status} />
-              </div>
-            ))}
+              )
+            })}
           </div>
-        </Section>
+        )}
+      </div>
+
+      {plugins.length > 0 && (
+        <div className="fab-row">
+          <button className="fab-ext" onClick={() => nav('/admin/plugins')}>
+            <Upload size={18} /> Установить плагин
+          </button>
+        </div>
       )}
     </div>
   )

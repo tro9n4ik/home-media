@@ -30,16 +30,16 @@ export default function Login() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <div style={{
-            width: 56, height: 56, borderRadius: 10, margin: '0 auto 16px',
-            background: 'var(--panel-raised)', border: '1px solid var(--line)',
+            width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px',
+            background: 'var(--primary-container)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 20, color: 'var(--amber)',
+            fontFamily: 'var(--disp)', fontWeight: 500, fontSize: 22, color: 'var(--on-primary-container)',
           }}>HM</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+          <div style={{ fontFamily: 'var(--disp)', fontSize: 22, fontWeight: 400 }}>
             Home.Media
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-faint)', marginTop: 8, letterSpacing: '.08em' }}>
-            AUTH REQUIRED · PANEL ACCESS
+          <div style={{ fontSize: 13, color: 'var(--ink-faint)', marginTop: 8 }}>
+            панель управления · войдите для продолжения
           </div>
         </div>
 
