@@ -1,0 +1,7 @@
+# Зависимости для разработки и тестов (core). В Docker-образ не входят.
+-r requirements.txt
+pytest
+pytest-asyncio
+pytest-mock
+pytest-cov
+aiohttp>=3.9

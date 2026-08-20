@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Умный дом — Home Assistant</title>
+<style>
+:root {
+  --bg: #0a0e17;
+  --panel: rgba(23, 30, 46, .72);
+  --panel2: #161d2e;
+  --panel3: #1f2940;
+  --line: #232e45;
+  --line2: #33415f;
+  --txt: #e9eef7;
+  --txt2: #9aa7bd;
+  --txt3: #5d6a84;
+  --cyan: #4cc9f0;
+  --violet: #8b5cf6;
+  --pink: #ec4899;
+  --ok: #34d399;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --grad: linear-gradient(135deg, #4cc9f0, #8b5cf6 55%, #ec4899);
+  --r: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scrollbar-color: var(--line2) transparent; }
+body {
+  background: var(--bg); color: var(--txt); min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  background-image:
+    radial-gradient(1000px 500px at 85% -10%, rgba(139,92,246,.16), transparent 60%),
+    radial-gradient(900px 460px at -10% 0%, rgba(76,201,240,.13), transparent 55%);
+  background-attachment: fixed;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(900px 500px at 50% 0%, #000 20%, transparent 75%);
+}
+.wrap { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 26px 22px 60px; }
+header { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 46px; height: 46px; border-radius: 14px; background: var(--grad);
+  display: flex; align-items: center; justify-content: center; font-size: 23px;
+  box-shadow: 0 8px 26px rgba(139,92,246,.45); flex: none;
+}
+h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+.sub { color: var(--txt2); font-size: 12.5px; margin-top: 2px; }
+.topbar { display: flex; align-items: center; gap: 10px; margin: 18px 0 16px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 99px; padding: 6px 13px;
+  font-size: 12px; color: var(--txt2); font-weight: 600; backdrop-filter: blur(8px);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.dot.off { background: var(--bad); box-shadow: 0 0 10px var(--bad); }
+.pill.good { color: var(--ok); border-color: rgba(52,211,153,.35); }
+.pill.bad { color: var(--bad); border-color: rgba(248,113,113,.35); }
+.right { margin-left: auto; display: flex; gap: 8px; }
+.btn {
+  background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .15s; min-height: 34px;
+  display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+}
+.btn:hover { background: var(--panel3); border-color: var(--line2); transform: translateY(-1px); }
+.btn:active { transform: scale(.97); }
+.btn.primary {
+  background: var(--grad); border: none; color: #fff;
+  box-shadow: 0 6px 18px rgba(139,92,246,.4);
+}
+.btn.primary:hover { filter: brightness(1.12); }
+.btn.danger { color: var(--bad); border-color: rgba(248,113,113,.32); }
+.btn.danger:hover { background: rgba(248,113,113,.13); }
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: .45; cursor: default; transform: none; }
+.tabs { display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--line); padding: 5px; border-radius: 13px; margin-bottom: 20px; backdrop-filter: blur(8px); }
+.tab {
+  flex: 1; background: transparent; border: none; color: var(--txt3); font-family: inherit;
+  font-size: 13px; font-weight: 700; padding: 9px 10px; border-radius: 9px; cursor: pointer;
+  transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.tab:hover { color: var(--txt2); }
+.tab.on { background: var(--grad); color: #fff; box-shadow: 0 4px 14px rgba(139,92,246,.35); }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px 16px; margin-bottom: 10px; backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,.25); transition: all .18s;
+}
+.card:hover { border-color: var(--line2); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.card.on { border-color: rgba(76,201,240,.55); box-shadow: 0 0 0 1px rgba(76,201,240,.4), 0 8px 26px rgba(76,201,240,.12); }
+.card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.card-icon {
+  width: 36px; height: 36px; border-radius: 11px; flex: none; background: var(--panel3);
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.card-icon.hot { background: linear-gradient(135deg, rgba(76,201,240,.28), rgba(139,92,246,.28)); }
+.card-name { font-weight: 700; font-size: 13.5px; }
+.card-meta { font-size: 11px; color: var(--txt3); margin-top: 1px; font-family: ui-monospace, monospace; }
+.card-state { margin-left: auto; text-align: right; font-size: 11px; color: var(--txt3); }
+.card-state b { display: block; color: var(--txt); font-size: 13px; font-weight: 800; }
+.card-state .on-dot { color: var(--ok); }
+.controls { display: flex; gap: 7px; flex-wrap: wrap; }
+.controls .spacer { flex: 1; }
+.slider-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.slider-row input[type=range] {
+  flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px;
+  background: var(--panel3); outline: none; cursor: pointer;
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--grad); border: 2px solid #fff; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.45);
+}
+.slider-val { font-size: 12px; color: var(--txt2); font-weight: 700; min-width: 46px; text-align: right; }
+.sec { margin-bottom: 30px; animation: fadeUp .35s ease both; }
+.sec h2 {
+  font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--txt3); margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+}
+.sec h2::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.sec h2 .count {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 99px;
+  padding: 1px 9px; font-size: 10.5px; letter-spacing: 0;
+}
+.sensors { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.stat {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 13px 15px; backdrop-filter: blur(8px); transition: all .18s;
+}
+.stat:hover { border-color: var(--line2); transform: translateY(-2px); }
+.stat .icon { font-size: 18px; }
+.stat .v { font-size: 22px; font-weight: 800; letter-spacing: -.03em; margin-top: 8px; }
+.stat .v small { font-size: 13px; color: var(--txt2); font-weight: 600; }
+.stat .n { font-size: 11.5px; color: var(--txt3); margin-top: 3px; }
+.stat.warn .v { color: var(--warn); }
+.stat.ok .v { color: var(--ok); }
+.stat.hot .v { color: var(--cyan); }
+.empty { color: var(--txt3); font-size: 13px; padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
+.ov {
+  position: fixed; inset: 0; z-index: 90; background: rgba(6,9,16,.7);
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  backdrop-filter: blur(6px); animation: fadeIn .2s ease;
+}
+.modal {
+  width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: var(--panel2);
+  border: 1px solid var(--line2); border-radius: 18px; padding: 20px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6); animation: pop .22s ease;
+}
+.modal h3 { font-size: 15px; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 9px; }
+.modal .m-sub { color: var(--txt3); font-size: 12px; margin-bottom: 14px; }
+fieldset { border: none; margin-bottom: 12px; }
+.modal label { display: block; font-size: 11px; color: var(--txt3); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin: 12px 0 5px; }
+.modal input, .modal textarea {
+  width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--txt); padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.modal input:focus, .modal textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(76,201,240,.14); }
+.modal textarea { min-height: 70px; resize: vertical; font-size: 12px; }
+.row2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.row2.l2 { grid-template-columns: 1fr 1fr; }
+.status { font-size: 12px; font-weight: 600; align-self: center; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--bad); }
+.mf { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 14px; }
+#toast { position: fixed; bottom: 22px; right: 22px; z-index: 99; display: flex; flex-direction: column; gap: 8px; }
+.toast-item {
+  background: var(--panel2); border: 1px solid var(--line2); color: var(--txt);
+  border-left: 4px solid var(--cyan); padding: 11px 17px; border-radius: 12px;
+  font-size: 12.5px; font-weight: 600; box-shadow: 0 12px 30px rgba(0,0,0,.5);
+  animation: slide .22s ease; max-width: 340px;
+}
+.toast-item.err { border-left-color: var(--bad); }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } }
+@keyframes slide { from { transform: translateX(24px); opacity: 0; } }
+@keyframes pop { from { transform: scale(.94); opacity: 0; } }
+
+/* ── Конфигуратор Telegram-меню ────────────────────────────── */
+.tg-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tg-toolbar .tg-stat { margin-left: auto; }
+.tg-stat { font-size: 11.5px; font-weight: 700; color: var(--txt3); }
+.tg-stat.dirty { color: var(--warn); }
+.tg-layout { display: grid; grid-template-columns: 264px 1fr; gap: 14px; align-items: start; }
+@media (max-width: 780px) { .tg-layout { grid-template-columns: 1fr; } }
+.pane {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 13px; backdrop-filter: blur(8px);
+}
+.pane-title {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--txt3); margin: 4px 4px 10px; display: flex; align-items: center; gap: 7px;
+}
+.g-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; padding-right: 3px; }
+.g-item {
+  display: flex; align-items: center; gap: 9px; padding: 10px 11px; width: 100%;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 11px;
+  color: var(--txt); font-size: 13px; font-weight: 600; cursor: grab; font-family: inherit;
+  text-align: left; transition: all .14s; user-select: none;
+}
+.g-item:hover { border-color: var(--line2); background: var(--panel3); }
+.g-item:active { cursor: grabbing; }
+.g-item.dragging { opacity: .45; border-style: dashed; }
+.g-item.over { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(76,201,240,.25); }
+.g-item.active { border-color: var(--cyan); background: rgba(76,201,240,.1); }
+.g-item .ic { font-size: 16px; flex: none; }
+.g-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-item .cnt {
+  flex: none; background: rgba(255,255,255,.05); border: 1px solid var(--line);
+  border-radius: 99px; padding: 1px 8px; font-size: 11px; color: var(--txt2);
+}
+.g-item .g-del {
+  background: transparent; border: none; color: var(--txt3); cursor: pointer;
+  font-size: 13px; padding: 2px 5px; border-radius: 7px; opacity: 0; transition: all .15s;
+}
+.g-item:hover .g-del { opacity: 1; }
+.g-item .g-del:hover { color: var(--bad); background: rgba(248,113,113,.12); }
+.g-hint { color: var(--txt3); font-size: 12px; padding: 4px 6px 8px; line-height: 1.5; }
+.m-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; flex-wrap: wrap; }
+.m-head .g-name-input {
+  flex: 1; min-width: 120px; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 10px; color: var(--txt); padding: 8px 12px; font-size: 15px; font-weight: 700;
+  font-family: inherit; outline: none; transition: all .15s;
+}
+.m-head .g-name-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(76,201,240,.14); }
+.icon-pick { position: relative; }
+.icon-pick .btn { font-size: 17px; padding: 5px 10px; min-height: 34px; }
+.popover {
+  position: absolute; top: calc(100% + 7px); left: 0; z-index: 60;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; width: 224px;
+  background: var(--panel3); border: 1px solid var(--line2); border-radius: 12px; padding: 7px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+.popover button { background: transparent; border: none; border-radius: 8px; font-size: 16px; padding: 6px 0; cursor: pointer; transition: background .1s; }
+.popover button:hover { background: var(--line); }
+.chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 9px; }
+.chip {
+  background: var(--panel2); border: 1px solid var(--line); color: var(--txt2);
+  border-radius: 99px; padding: 4px 11px; font-size: 11.5px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .12s;
+}
+.chip:hover { border-color: var(--line2); color: var(--txt); }
+.chip.on { background: rgba(76,201,240,.15); border-color: var(--cyan); color: var(--cyan); }
+.search-wrap { position: relative; margin-bottom: 9px; }
+.search-wrap .ss {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--txt3); font-size: 13px; pointer-events: none;
+}
+.search-wrap input {
+  width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 11px;
+  color: var(--txt); padding: 10px 12px 10px 33px; font-size: 13px; font-family: inherit;
+  outline: none; transition: all .15s;
+}
+.search-wrap input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(76,201,240,.14); }
+.e-list { max-height: 430px; overflow-y: auto; padding-right: 3px; display: flex; flex-direction: column; gap: 4px; }
+.e-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; width: 100%;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+  font-size: 13px; cursor: pointer; font-family: inherit; color: var(--txt); text-align: left;
+  transition: all .13s; user-select: none;
+}
+.e-row:hover { border-color: var(--line2); background: var(--panel3); }
+.e-row.dragging { opacity: .4; }
+.e-row.over { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(76,201,240,.22); }
+.e-row .en { font-weight: 600; }
+.e-row .en mark {
+  background: rgba(76,201,240,.28); color: var(--cyan); border-radius: 4px; padding: 0 3px;
+}
+.e-row .ee { margin-left: auto; color: var(--txt3); font-size: 10.5px; font-family: ui-monospace, monospace; }
+.e-row .act { display: flex; gap: 3px; flex: none; align-items: center; }
+.e-row input[type=checkbox] { accent-color: var(--cyan); width: 16px; height: 16px; cursor: pointer; }
+.e-row .plus { flex: none; }
+.e-row .updn { background: transparent; border: none; color: var(--txt3); cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 6px; }
+.e-row .updn:hover { color: var(--cyan); background: rgba(76,201,240,.12); }
+.e-empty { color: var(--txt3); font-size: 12.5px; padding: 16px; text-align: center; border: 1px dashed var(--line); border-radius: 11px; }
+.phone {
+  width: min(400px, 100%); border-radius: 30px; background: #0d1420;
+  border: 1px solid var(--line2); padding: 12px; box-shadow: 0 40px 100px rgba(0,0,0,.7);
+}
+.phone-head { display: flex; align-items: center; gap: 10px; padding: 6px 10px 12px; }
+.phone-head .avatar {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--grad);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.phone-head .pname { font-weight: 800; font-size: 13.5px; }
+.phone-head .pstatus { font-size: 11px; color: var(--txt3); }
+.phone-head .right { margin-left: auto; }
+.chat { max-height: 62vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px; }
+.tg-msg {
+  background: #14202f; border: 1px solid #1e3049; border-radius: 14px;
+  border-top-left-radius: 4px; padding: 11px 14px; font-size: 13px; line-height: 1.5;
+  color: #e9eef7; white-space: pre-line; animation: fadeUp .2s ease;
+}
+.tg-msg b { color: #fff; }
+.tg-msg.us { margin-left: auto; background: #1f3d5c; border-top-left-radius: 14px; border-top-right-radius: 4px; }
+.tg-kb { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px; }
+.tg-kb .b {
+  background: #1d3048; border: 1px solid #2c4462; border-radius: 10px; color: #e9eef7;
+  padding: 10px 6px; text-align: center; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all .13s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tg-kb .b:hover { background: #27415f; }
+.tg-kb .b.full { grid-column: 1 / -1; }
+.tg-kb .b.alt { background: #101d2e; color: var(--txt3); border-color: #1b2b42; }
+.chat::-webkit-scrollbar, .e-list::-webkit-scrollbar, .g-list::-webkit-scrollbar { width: 8px; }
+.chat::-webkit-scrollbar-thumb, .e-list::-webkit-scrollbar-thumb, .g-list::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 99px; }
+@media (max-width: 560px) { .wrap { padding: 18px 14px 50px; } .card-state { display: none; } .m-head .g-name-input { width: 100%; flex: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🏠</div>
+    <div>
+      <h1>Умный дом</h1>
+      <div class="sub">Home Assistant · управление и Telegram-меню</div>
+    </div>
+  </header>
+
+  <div class="topbar">
+    <span class="pill" id="haPill"><span class="dot off" id="haDot"></span><span id="haText">Проверка…</span></span>
+    <span class="pill" id="cachedPill">⏱ Обновлено: —</span>
+    <span class="right">
+      <button class="btn" id="refreshBtn" onclick="doRefresh()">🔄 Обновить</button>
+      <button class="btn ghost" onclick="openSettings()" title="Настройки">⚙ Настройки</button>
+    </span>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab on" id="tabDash" onclick="switchTab('dash')">🏠 Дашборд</button>
+    <button class="tab" id="tabTg" onclick="switchTab('tg')">🗂 Telegram-меню</button>
+  </nav>
+
+  <main id="app"></main>
+
+  <div id="tgPanel" style="display:none">
+    <div class="tg-toolbar">
+      <button class="btn primary" id="tgAdd" onclick="tgGroupAdd()">➕ Новая группа</button>
+      <button class="btn" onclick="openPreview()">👁 Превью</button>
+      <label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin:0">
+        <input type="checkbox" id="tgSensorsChk" checked style="accent-color:var(--cyan)">
+        📊 Датчики
+      </label>
+    </div>
+    <div class="tg-layout">
+      <div class="pane" id="tgSide"></div>
+      <div class="pane" id="tgMain"></div>
+    </div>
+    <div class="controls" style="margin-top:14px;align-items:center">
+      <span class="status" id="tg-status"></span>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="tgRevert" onclick="tgRevert()" disabled>↺ Отменить</button>
+      <button class="btn primary" id="tgSave" onclick="saveTgMenu()" disabled>💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="settingsOv" style="display:none" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <h3><span class="card-icon hot" style="width:34px;height:34px">⚙</span> Подключение</h3>
+    <div class="m-sub">URL и Long-Lived Access Token вашего Home Assistant</div>
+    <label>Home Assistant URL</label>
+    <input id="cfg_ha_url" placeholder="http://192.168.1.100:8123">
+    <label>Long-Lived Access Token</label>
+    <input id="cfg_ha_token" type="password" placeholder="введите токен">
+    <div class="row2">
+      <label>Обновление, сек</label>
+      <input id="cfg_poll" type="number" min="5">
+    </div>
+    <div class="row2">
+      <label>Шаг яркости, %</label>
+      <input id="cfg_br" type="number" min="5" max="100">
+      <label>Шаг температуры, °C</label>
+      <input id="cfg_temp" type="number" step="0.5">
+      <label>Шаг громкости, %</label>
+      <input id="cfg_vol" type="number" min="5" max="100">
+    </div>
+    <label>Скрытые сущности (entity_id, по одному в строке)</label>
+    <textarea id="cfg_hide" placeholder="sensor.uptime&#10;binary_sensor.update_available"></textarea>
+    <div class="mf">
+      <span class="status" id="cfg-status"></span>
+      <button class="btn ghost" onclick="closeSettings()">Отмена</button>
+      <button class="btn primary" id="cfgSave" onclick="saveConfig()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="previewOv" style="display:none" onclick="if(event.target===this)closePreview()">
+  <div class="phone">
+    <div class="phone-head">
+      <span class="avatar">🤖</span>
+      <span>
+        <div class="pname">Умный дом</div>
+        <div class="pstatus">бот · онлайн</div>
+      </span>
+      <span class="right"><button class="btn ghost sm" onclick="closePreview()" style="min-height:28px;padding:5px 10px">✕</button></span>
+    </div>
+    <div class="chat" id="chat"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let BUSY = false;
+
+const parts = location.pathname.split('/');
+const PROXY = parts.slice(0, parts.indexOf('proxy') + 1).join('/');
+
+async function api(path, opts = {}, timeoutMs = 35000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(PROXY + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts, signal: ctrl.signal,
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || r.statusText);
+    return r.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Таймаут: ' + (timeoutMs / 1000) + 'с');
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+
+function toast(msg, err) {
+  const el = document.createElement('div');
+  el.className = 'toast-item' + (err ? ' err' : '');
+  el.textContent = msg;
+  $('#toast').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function hl(text, q) {
+  const t = escapeHtml(text);
+  const query = (q || '').trim();
+  if (!query) return t;
+  const phrase = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(' + phrase.split(' ').map(p => p.replace(/\\/g, '')).filter(Boolean).join('|') + ')', 'ig');
+  return t.replace(re, '<mark>$1</mark>');
+}
+
+function switchTab(t) {
+  $('#tabDash').className = 'tab' + (t === 'dash' ? ' on' : '');
+  $('#tabTg').className = 'tab' + (t === 'tg' ? ' on' : '');
+  $('#app').style.display = t === 'dash' ? '' : 'none';
+  $('#tgPanel').style.display = t === 'tg' ? '' : 'none';
+  if (t === 'tg') loadTgMenu();
+}
+
+/* ── Дашборд ─────────────────────────────────────────────────── */
+
+const D_ICONS = {
+  light: '💡', climate: '🌡', switch: '🔌', input_boolean: '🎛', automation: '🤖',
+  script: '📜', fan: '🌀', media_player: '📺', cover: '🪟', lock: '🔒'
+};
+const D_TITLES = {
+  light: 'Свет', climate: 'Климат', switch: 'Переключатели', input_boolean: 'Тумблеры',
+  automation: 'Автоматизации', script: 'Скрипты', fan: 'Вентиляция',
+  media_player: 'Медиа', cover: 'Шторы', lock: 'Замки'
+};
+const D_SECTIONS = ['light', 'climate', 'switch', 'input_boolean', 'automation', 'script', 'fan', 'media_player', 'cover', 'lock'];
+
+async function control(entityId, action, value) {
+  if (BUSY) return;
+  BUSY = true;
+  try {
+    const d = await api('/api/control', {
+      method: 'POST',
+      body: JSON.stringify({ entity_id: entityId, action, value })
+    });
+    if (d.ok) toast('✅ ' + entityId.split('.')[0] + ' → ' + d.message);
+    else toast('❌ ' + (d.error || d.message || 'ошибка'), true);
+    await load(true);
+  } catch (e) {
+    toast('❌ Сеть: ' + e.message, true);
+  } finally { BUSY = false; }
+}
+
+function slFill(el) {
+  el.style.background = `linear-gradient(to right, var(--cyan) 0%, var(--violet) ${el.value}%, var(--panel3) ${el.value}%)`;
+}
+
+function brightCard(e) {
+  const v = e.brightness_pct ?? 0;
+  return `
+    <div class="slider-row">
+      <input type="range" min="0" max="100" step="5" value="${v}"
+        oninput="this.nextElementSibling.textContent=this.value+'%';slFill(this)"
+        onchange="control('${e.entity_id}','brightness_set',this.value)">
+      <span class="slider-val">${v}%</span>
+    </div>`;
+}
+
+function mediaCard(e) {
+  const v = e.volume_pct ?? 0;
+  return `
+    <div class="controls">
+      <button class="btn primary" onclick="control('${e.entity_id}','play')">▶ Play</button>
+      <button class="btn" onclick="control('${e.entity_id}','pause')">⏸ Пауза</button>
+      <button class="btn sm" onclick="control('${e.entity_id}','vol_down')">🔉 −</button>
+      <button class="btn sm" onclick="control('${e.entity_id}','vol_up')">🔊 +</button>
+    </div>
+    <div class="slider-row">
+      <input type="range" min="0" max="100" step="5" value="${v}"
+        oninput="this.nextElementSibling.textContent=this.value+'%';slFill(this)"
+        onchange="control('${e.entity_id}','vol_set',this.value)">
+      <span class="slider-val">${v}%</span>
+    </div>`;
+}
+
+function climateCard(e) {
+  const modes = [['heat','🔥'], ['cool','❄'], ['auto','🔄'], ['dry','💧'], ['fan_only','🌀'], ['off','⏻']];
+  return `
+    <div class="controls">
+      <button class="btn" onclick="control('${e.entity_id}','temp_down')">− °C</button>
+      <button class="btn" onclick="control('${e.entity_id}','temp_up')">+ °C</button>
+      <span class="spacer"></span>
+      ${modes.map(([m, ic]) => `<button class="btn sm" onclick="control('${e.entity_id}','hvac','${m}')">${ic}</button>`).join('')}
+    </div>`;
+}
+
+function controlsFor(e) {
+  const d = e.domain;
+  if (d === 'light') {
+    return `
+      <div class="controls">
+        <button class="btn primary" onclick="control('${e.entity_id}','on')">Вкл</button>
+        <button class="btn" onclick="control('${e.entity_id}','off')">Выкл</button>
+        <button class="btn" onclick="control('${e.entity_id}','toggle')">⤴ Переключить</button>
+      </div>${brightCard(e)}`;
+  }
+  if (d === 'climate') return climateCard(e);
+  if (d === 'media_player') return mediaCard(e);
+  if (d === 'cover') {
+    return `
+      <div class="controls">
+        <button class="btn primary" onclick="control('${e.entity_id}','open')">🔼 Открыть</button>
+        <button class="btn" onclick="control('${e.entity_id}','stop')">⏸ Стоп</button>
+        <button class="btn" onclick="control('${e.entity_id}','close')">🔽 Закрыть</button>
+      </div>`;
+  }
+  if (d === 'lock') {
+    return `
+      <div class="controls">
+        <button class="btn primary" onclick="control('${e.entity_id}','lock')">🔒 Закрыть</button>
+        <button class="btn danger" onclick="control('${e.entity_id}','unlock')">🔓 Открыть</button>
+      </div>`;
+  }
+  if (d === 'fan') {
+    return `
+      <div class="controls">
+        <button class="btn primary" onclick="control('${e.entity_id}','on')">Вкл</button>
+        <button class="btn" onclick="control('${e.entity_id}','off')">Выкл</button>
+        <button class="btn sm" onclick="control('${e.entity_id}','speed_down')">🌀 −</button>
+        <button class="btn sm" onclick="control('${e.entity_id}','speed_up')">🌀 +</button>
+      </div>`;
+  }
+  return `
+    <div class="controls">
+      <button class="btn primary" onclick="control('${e.entity_id}','on')">Вкл</button>
+      <button class="btn" onclick="control('${e.entity_id}','off')">Выкл</button>
+      <button class="btn" onclick="control('${e.entity_id}','toggle')">⤴ Переключить</button>
+    </div>`;
+}
+
+function renderDash(data) {
+  const es = data.entities || [];
+  const parts = [];
+  D_SECTIONS.forEach(dom => {
+    const list = es.filter(e => e.domain === dom);
+    if (!list.length) return;
+    parts.push(`
+      <div class="sec">
+        <h2>${D_ICONS[dom]} ${D_TITLES[dom]} <span class="count">${list.length}</span></h2>
+        ${list.map(e => {
+          const on = e.state === 'on';
+          const hasExtra = e.domain === 'light' || e.domain === 'climate' || e.domain === 'media_player';
+          return `
+            <div class="card ${on ? 'on' : ''}">
+              <div class="card-head">
+                <div class="card-icon ${hasExtra ? 'hot' : ''}">${e.icon}</div>
+                <div>
+                  <div class="card-name">${escapeHtml(e.name)}</div>
+                  <div class="card-meta">${escapeHtml(e.entity_id)}</div>
+                </div>
+                <div class="card-state"><b>${escapeHtml(e.state_str)}</b>${on ? ' <span class="on-dot">●</span>' : ''}</div>
+              </div>
+              ${controlsFor(e)}
+            </div>`;
+        }).join('')}
+      </div>`);
+  });
+  const sensors = es.filter(e => e.domain === 'sensor' || e.domain === 'binary_sensor');
+  if (sensors.length) {
+    parts.push(`
+      <div class="sec">
+        <h2>📊 Датчики <span class="count">${sensors.length}</span></h2>
+        <div class="sensors">
+          ${sensors.map(e => {
+            const num = e.domain === 'sensor' && !isNaN(parseFloat(e.state)) && !e.state.includes(' ');
+            const cls = e.domain === 'binary_sensor' ? (e.state === 'on' ? 'warn' : 'ok')
+              : (num ? (parseFloat(e.state) > 50 ? 'hot' : '') : '');
+            return `
+              <div class="stat ${cls}">
+                <span class="icon">${e.icon}</span>
+                <div class="v">${escapeHtml(e.state)}${e.unit ? `<small> ${escapeHtml(e.unit)}</small>` : ''}</div>
+                <div class="n">${escapeHtml(e.name)}</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`);
+  }
+  $('#app').innerHTML = parts.join('') || '<div class="empty">Нет данных — проверьте подключение к Home Assistant в настройках.</div>';
+}
+
+async function load(force) {
+  if (BUSY) return;
+  BUSY = true;
+  const btn = $('#refreshBtn');
+  btn.disabled = true;
+  try {
+    const d = await api('/api/entities' + (force ? '?force=1' : ''));
+    const pill = $('#haPill');
+    if (d.ok) {
+      pill.className = 'pill good'; $('#haDot').className = 'dot on';
+      $('#haText').textContent = 'Home Assistant подключён';
+    } else {
+      pill.className = 'pill bad'; $('#haDot').className = 'dot off';
+      $('#haText').textContent = 'Нет связи с HA';
+    }
+    const age = d.cache_age != null ? Math.round(d.cache_age) : 0;
+    $('#cachedPill').textContent = '⏱ Обновлено: ' + (age <= 1 ? 'только что' : age + ' с назад');
+    renderDash(d);
+  } catch (e) {
+    $('#haText').textContent = 'Ошибка плагина';
+    $('#app').innerHTML = '<div class="empty">Не удалось получить данные от плагина.</div>';
+  } finally {
+    BUSY = false;
+    btn.disabled = false;
+  }
+}
+
+function doRefresh() {
+  api('/api/refresh').then(() => load(true)).catch(() => load(true));
+}
+
+/* ── Настройки ────────────────────────────────────────────────── */
+
+function openSettings() {
+  loadConfig();
+  $('#settingsOv').style.display = '';
+}
+function closeSettings() { $('#settingsOv').style.display = 'none'; }
+
+function setCfgStatus(text, ok = true) {
+  const el = $('#cfg-status');
+  el.textContent = text;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+async function loadConfig() {
+  try {
+    const { config } = await api('/config?masked=true');
+    $('#cfg_ha_url').value = config.ha_url || '';
+    $('#cfg_ha_token').value = config.ha_token || '';
+    $('#cfg_poll').value = config.poll_seconds ?? 30;
+    $('#cfg_br').value = config.brightness_step ?? 15;
+    $('#cfg_temp').value = config.temp_step ?? 0.5;
+    $('#cfg_vol').value = config.volume_step ?? 10;
+    $('#cfg_hide').value = Array.isArray(config.hide) ? config.hide.join('\n') : '';
+  } catch (e) {
+    setCfgStatus('✗ ' + e.message, false);
+  }
+}
+
+async function saveConfig() {
+  const btn = $('#cfgSave');
+  btn.disabled = true;
+  btn.textContent = 'Отправка…';
+  try {
+    await api('/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        ha_url: $('#cfg_ha_url').value.trim(),
+        ha_token: $('#cfg_ha_token').value.trim(),
+        poll_seconds: parseInt($('#cfg_poll').value, 10) || 30,
+        brightness_step: parseInt($('#cfg_br').value, 10) || 15,
+        temp_step: parseFloat($('#cfg_temp').value) || 0.5,
+        volume_step: parseInt($('#cfg_vol').value, 10) || 10,
+        hide: $('#cfg_hide').value.split('\n').map(s => s.trim()).filter(Boolean),
+      }),
+    });
+    toast('✓ Настройки сохранены');
+    setCfgStatus('✓ сохранено');
+    await load(true);
+  } catch (e) {
+    setCfgStatus('✗ ' + e.message, false);
+    toast('✗ ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Сохранить';
+  }
+}
+
+/* ── Конфигуратор Telegram-меню ───────────────────────────────── */
+
+let TG_GROUPS = [];
+let TG_ENTITIES = [];
+let TG_SHOW_SENSORS = true;
+let TG_ACTIVE = 0;
+let TG_SEARCH = '';
+let TG_DOMAIN = '';
+let TG_DIRTY = false;
+let TG_BASE_SNAP = '';
+let TG_PREV = null;
+let TG_DRAG = null;
+
+const E_ICONS = {
+  light: '💡', climate: '🌡', switch: '🔌', fan: '🌀', media_player: '📺',
+  cover: '🪟', lock: '🔒', sensor: '📊', binary_sensor: '🔔', input_boolean: '🎛',
+  automation: '🤖', script: '📜', humidifier: '💧'
+};
+const TG_EMOJI = ['💡','🌡','🔌','🌀','📺','🪟','🔒','🎛','🤖','📜','💧','🔥','❄','🔔','🏠','🌙','🚪','🛋','🍳','🧺','🚗','🔊','📷','🚨','⏰','🎥','🖥','⚡','♨️','🧊','🌬','🚿'];
+
+function tgUnassigned() {
+  const used = new Set();
+  TG_GROUPS.forEach(g => (g.entities || []).forEach(x => used.add(x)));
+  return TG_ENTITIES.filter(e => !used.has(e.entity_id));
+}
+
+function tgMarkDirty() {
+  const snap = JSON.stringify({ g: TG_GROUPS, s: TG_SHOW_SENSORS });
+  TG_DIRTY = snap !== TG_BASE_SNAP;
+  $('#tgSave').disabled = !TG_DIRTY;
+  $('#tgRevert').disabled = !TG_DIRTY;
+  const st = $('#tgStat');
+  if (st) {
+    st.textContent = TG_DIRTY ? '● есть несохранённые изменения' : '✓ всё сохранено';
+    st.className = 'tg-stat' + (TG_DIRTY ? ' dirty' : '');
+  }
+}
+
+async function loadTgMenu() {
+  const side = $('#tgSide');
+  side.innerHTML = '<div class="e-empty">Загрузка…</div>';
+  try {
+    const cfg = await api('/config?masked=true');
+    const data = await api('/api/entities');
+    TG_GROUPS = Array.isArray(cfg.config.tg_groups) ? cfg.config.tg_groups : [];
+    TG_SHOW_SENSORS = cfg.config.tg_show_sensors !== false;
+    TG_ENTITIES = data.entities || [];
+    TG_ACTIVE = TG_GROUPS.length ? 0 : -1;
+    TG_SEARCH = '';
+    TG_DOMAIN = '';
+    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.slice().map(g => ({ ...g, entities: [...(g.entities || [])] })), s: TG_SHOW_SENSORS });
+    $('#tgSensorsChk').checked = TG_SHOW_SENSORS;
+    renderTgAll();
+  } catch (e) {
+    side.innerHTML = '<div class="e-empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderTgAll() {
+  renderTgSide();
+  renderTgMain();
+  tgMarkDirty();
+}
+
+function renderTgSide() {
+  const side = $('#tgSide');
+  const un = tgUnassigned();
+  let html = '<div class="pane-title">📂 Разделы меню</div><div class="g-list">';
+  TG_GROUPS.forEach((g, gi) => {
+    const n = (g.entities || []).length;
+    html += `<div class="g-item ${gi === TG_ACTIVE ? 'active' : ''}"
+      draggable="true"
+      ondragstart="tgDragStart(${gi})"
+      ondragover="event.preventDefault();this.classList.add('over')"
+      ondragleave="this.classList.remove('over')"
+      ondrop="tgGroupDrop(${gi});this.classList.remove('over')"
+      onclick="tgSelect(${gi})">
+      <span class="ic">${escapeHtml(g.icon || '▪')}</span>
+      <span class="nm">${escapeHtml(g.name || 'Без имени')}</span>
+      <span class="cnt">${n}</span>
+      <button class="g-del" title="Удалить" onclick="event.stopPropagation();tgGroupDel(${gi})">✕</button>
+    </div>`;
+  });
+  if (!TG_GROUPS.length) {
+    html += '<div class="g-hint">Пока пусто. Создайте группу — например «Освещение» — и отметьте в ней нужные сущности.</div>';
+  }
+  html += '</div><div class="pane-title" style="margin-top:16px">🚫 Остальное</div><div class="g-list">';
+  html += `<div class="g-item ${TG_ACTIVE === -1 ? 'active' : ''}" onclick="tgSelect(-1)">
+    <span class="ic">🚫</span>
+    <span class="nm">Непривязанные</span>
+    <span class="cnt">${un.length}</span>
+  </div>`;
+  html += '</div>';
+  side.innerHTML = html;
+}
+
+function renderTgMain() {
+  const main = $('#tgMain');
+  if (TG_ACTIVE === -1) {
+    main.innerHTML = `
+      <div class="m-head"><span style="font-size:16px">🚫</span><b>Непривязанные сущности</b></div>
+      <div class="g-hint">Сущности вне всех групп. Выберите группу слева, затем жмите «＋» — сущность добавится в неё.</div>
+      ${tgSearchBlock()}
+      ${tgEntityList(tgUnassigned(), true)}`;
+    return;
+  }
+  const g = TG_GROUPS[TG_ACTIVE];
+  if (!g) { main.innerHTML = '<div class="e-empty">Создайте первую группу кнопкой «➕ Новая группа».</div>'; return; }
+  main.innerHTML = `
+    <div class="m-head">
+      <div class="icon-pick">
+        <button class="btn" onclick="tgToggleEmoji(event)">${escapeHtml(g.icon || '▪')}</button>
+        <div class="popover" id="tgEmoji" style="display:none">
+          ${TG_EMOJI.map(e => `<button onclick="tgSetIcon('${e}')">${e}</button>`).join('')}
+        </div>
+      </div>
+      <input class="g-name-input" value="${escapeHtml(g.name || '')}" placeholder="Название группы"
+        onchange="tgRename(this.value)">
+      <button class="btn danger" onclick="tgGroupDel(${TG_ACTIVE})" title="Удалить группу">🗑</button>
+    </div>
+    ${tgChips()}
+    ${tgSearchBlock()}
+    ${tgEntityList(TG_ENTITIES, false)}`;
+}
+
+function tgSearchBlock() {
+  return `
+    <div class="search-wrap">
+      <span class="ss">🔍</span>
+      <input placeholder="Поиск по названию или entity_id…" value="${escapeHtml(TG_SEARCH)}"
+        oninput="TG_SEARCH=this.value;renderTgMain()">
+    </div>`;
+}
+
+function tgChips() {
+  const seen = [];
+  TG_ENTITIES.forEach(e => { if (!seen.includes(e.domain)) seen.push(e.domain); });
+  let html = `<button class="chip ${TG_DOMAIN === '' ? 'on' : ''}" onclick="TG_DOMAIN='';renderTgMain()">Все</button>`;
+  seen.forEach(d => {
+    html += `<button class="chip ${TG_DOMAIN === d ? 'on' : ''}" onclick="TG_DOMAIN='${d}';renderTgMain()">${E_ICONS[d] || '▪'} ${d}</button>`;
+  });
+  return `<div class="chip-row">${html}</div>`;
+}
+
+function tgEntityList(ents, showPlus) {
+  const q = TG_SEARCH.toLowerCase();
+  const list = ents.filter(e => !TG_DOMAIN || e.domain === TG_DOMAIN)
+    .filter(e => !q || e.name.toLowerCase().includes(q) || e.entity_id.toLowerCase().includes(q));
+  if (!list.length) return '<div class="e-empty">Ничего не найдено.</div>';
+  return `<div class="e-list">
+    ${list.map(e => {
+      const inG = !showPlus && ((TG_GROUPS[TG_ACTIVE] || {}).entities || []).includes(e.entity_id);
+      const idx = inG ? (TG_GROUPS[TG_ACTIVE] || {}).entities.indexOf(e.entity_id) : -1;
+      return `<div class="e-row" ${inG && !showPlus ? `draggable="true" ondragstart="tgEntDragStart('${e.entity_id}')" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="tgEntDrop('${e.entity_id}');this.classList.remove('over')"` : ''} onclick="${showPlus ? `tgAddUnassigned('${e.entity_id}')` : ''}">
+        <span>${E_ICONS[e.domain] || '▪'}</span>
+        <span class="en">${hl(e.name, TG_SEARCH)}</span>
+        <span class="ee">${hl(e.entity_id, TG_SEARCH)}</span>
+        ${showPlus
+          ? `<button class="btn sm plus" onclick="event.stopPropagation();tgAddUnassigned('${e.entity_id}')">＋</button>`
+          : `<span class="act">
+              ${inG ? `<button class="updn" title="Выше" onclick="event.stopPropagation();tgMove(${TG_ACTIVE},${idx},-1)">↑</button>
+              <button class="updn" title="Ниже" onclick="event.stopPropagation();tgMove(${TG_ACTIVE},${idx},1)">↓</button>` : ''}
+              <input type="checkbox" ${inG ? 'checked' : ''} onclick="event.stopPropagation()" onchange="tgToggle(${TG_ACTIVE},'${e.entity_id}',this.checked)">
+            </span>`}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function tgToggle(gi, eid, on) {
+  const g = TG_GROUPS[gi] || { entities: [] };
+  g.entities = g.entities || [];
+  if (on) { if (!g.entities.includes(eid)) g.entities.push(eid); }
+  else { g.entities = g.entities.filter(x => x !== eid); }
+  tgMarkDirty();
+  renderTgSide();
+}
+
+function tgMove(gi, idx, dir) {
+  const g = TG_GROUPS[gi];
+  if (!g) return;
+  const to = idx + dir;
+  if (to < 0 || to >= g.entities.length) return;
+  const tmp = g.entities[idx];
+  g.entities[idx] = g.entities[to];
+  g.entities[to] = tmp;
+  tgMarkDirty();
+  renderTgAll();
+}
+
+function tgAddUnassigned(eid) {
+  if (TG_ACTIVE < 0 || !TG_GROUPS[TG_ACTIVE]) { toast('Сначала выберите группу слева', true); return; }
+  const g = TG_GROUPS[TG_ACTIVE];
+  g.entities = g.entities || [];
+  if (!g.entities.includes(eid)) g.entities.push(eid);
+  toast('＋ Добавлено в «' + (g.name || 'группа') + '»');
+  tgMarkDirty();
+  renderTgSide();
+  renderTgMain();
+}
+
+function tgSelect(gi) {
+  TG_ACTIVE = gi;
+  TG_SEARCH = '';
+  renderTgAll();
+}
+
+function tgRename(val) {
+  const g = TG_GROUPS[TG_ACTIVE];
+  if (!g) return;
+  g.name = val;
+  tgMarkDirty();
+  renderTgSide();
+}
+
+function tgSetIcon(icon) {
+  const g = TG_GROUPS[TG_ACTIVE];
+  if (!g) return;
+  g.icon = icon;
+  tgMarkDirty();
+  $('#tgEmoji').style.display = 'none';
+  renderTgAll();
+}
+
+function tgToggleEmoji(ev) {
+  const el = $('#tgEmoji');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  ev.stopPropagation();
+}
+document.addEventListener('click', () => { const el = $('#tgEmoji'); if (el) el.style.display = 'none'; });
+
+function tgGroupAdd() {
+  let i = 1;
+  while (TG_GROUPS.some(g => g.name === ('Новая группа' + (i > 1 ? ' ' + i : '')))) i++;
+  TG_GROUPS.push({ name: 'Новая группа' + (i > 1 ? ' ' + i : ''), icon: '▪', entities: [] });
+  TG_ACTIVE = TG_GROUPS.length - 1;
+  toast('➕ Группа создана');
+  tgMarkDirty();
+  renderTgAll();
+}
+
+function tgGroupDel(gi) {
+  if (!confirm('Удалить раздел «' + (TG_GROUPS[gi].name || '') + '»?')) return;
+  TG_GROUPS.splice(gi, 1);
+  TG_ACTIVE = TG_GROUPS.length ? Math.min(TG_ACTIVE, TG_GROUPS.length - 1) : -1;
+  tgMarkDirty();
+  renderTgAll();
+}
+
+function tgGroupDrop(to) {
+  if (TG_DRAG === null || TG_DRAG === to) { TG_DRAG = null; return; }
+  const [g] = TG_GROUPS.splice(TG_DRAG, 1);
+  TG_GROUPS.splice(to, 0, g);
+  TG_ACTIVE = to;
+  TG_DRAG = null;
+  tgMarkDirty();
+  renderTgAll();
+}
+
+function tgDragStart(gi) { TG_DRAG = gi; }
+
+function tgEntDrop(eid) {
+  if (TG_DRAG === null || TG_DRAG === eid) { TG_DRAG = null; return; }
+  const g = TG_GROUPS[TG_ACTIVE];
+  if (!g) { TG_DRAG = null; return; }
+  const all = g.entities.slice();
+  const i = all.indexOf(TG_DRAG);
+  const j = all.indexOf(eid);
+  if (i < 0 || j < 0) { TG_DRAG = null; return; }
+  all.splice(i, 1);
+  all.splice(j, 0, TG_DRAG);
+  g.entities = all;
+  TG_DRAG = null;
+  tgMarkDirty();
+  renderTgAll();
+}
+
+function tgEntDragStart(eid) { TG_DRAG = eid; }
+
+function tgRevert() {
+  loadTgMenu();
+  toast('↺ Изменения отменены');
+}
+
+async function saveTgMenu() {
+  const btn = $('#tgSave');
+  btn.disabled = true;
+  btn.textContent = 'Отправка…';
+  const groups = TG_GROUPS.map(g => ({
+    name: (g.name || '').trim(),
+    icon: (g.icon || '').trim() || '▪',
+    entities: (g.entities || []).filter(Boolean),
+  })).filter(g => g.name);
+  try {
+    await api('/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        tg_groups: groups,
+        tg_show_sensors: $('#tgSensorsChk').checked,
+      }),
+    });
+    TG_GROUPS = groups;
+    TG_SHOW_SENSORS = $('#tgSensorsChk').checked;
+    TG_BASE_SNAP = JSON.stringify({ g: TG_GROUPS.slice().map(g => ({ ...g, entities: [...g.entities] })), s: TG_SHOW_SENSORS });
+    toast('✓ Меню обновлено');
+    setTgStatus('✓ сохранено');
+    tgMarkDirty();
+    await load(true);
+  } catch (e) {
+    setTgStatus('✗ ' + e.message, false);
+    toast('✗ ' + e.message, true);
+    btn.disabled = !TG_DIRTY;
+  } finally {
+    btn.textContent = '💾 Сохранить';
+  }
+}
+
+function setTgStatus(text, ok = true) {
+  const el = $('#tg-status');
+  el.textContent = text;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+$('#tgSensorsChk').addEventListener('change', () => {
+  TG_SHOW_SENSORS = $('#tgSensorsChk').checked;
+  tgMarkDirty();
+});
+
+/* ── Превью бота ──────────────────────────────────────────────── */
+
+function openPreview() {
+  TG_PREV = null;
+  renderPreview();
+  $('#previewOv').style.display = '';
+}
+
+function closePreview() {
+  $('#previewOv').style.display = 'none';
+}
+
+function renderPreview() {
+  const chat = $('#chat');
+  const kb = [];
+  let msg = '';
+  if (TG_PREV === null) {
+    msg = '🏠 <b>Умный дом</b>\n\nВыберите раздел 👇';
+    TG_GROUPS.forEach((g, gi) => {
+      if ((g.entities || []).length) {
+        kb.push({ t: `${g.icon || '▪'} ${g.name} (${g.entities.length})`, d: 'g' + gi });
+      }
+    });
+    const un = tgUnassigned();
+    if (TG_SHOW_SENSORS && un.length) kb.push({ t: `📊 Датчики (${un.length})`, d: 's' });
+    kb.push({ t: '🔄 Обновить', alt: true });
+  } else if (TG_PREV === -2) {
+    msg = `📊 <b>Датчики</b> (${tgUnassigned().length}):\n${tgUnassigned().map(e => `▫ ${e.name} — <b>${e.state_str}</b>`).join('\n')}`;
+    kb.push({ t: '◀ Назад', full: true, d: 'm' });
+  } else {
+    const g = TG_GROUPS[TG_PREV];
+    if (!g) { closePreview(); return; }
+    const ids = (g.entities || []).map(eid => TG_ENTITIES.find(e => e.entity_id === eid)).filter(Boolean);
+    msg = `${g.icon || '▪'} <b>${g.name}</b> (${ids.length}):\n${ids.map(e => `${e.icon} ${e.name} — <b>${e.state_str}</b>`).join('\n')}`;
+    ids.forEach(e => kb.push({ t: `${e.icon} ${e.name}`, d: 'x' + e.entity_id }));
+    kb.push({ t: '◀ Назад', full: true, d: 'm' });
+  }
+  chat.innerHTML = `
+    <div class="tg-msg">${msg}</div>
+    <div class="tg-kb">
+      ${kb.map(b => `<button class="b ${b.full ? 'full' : ''} ${b.alt ? 'alt' : ''}" data-act="${b.d || ''}">${escapeHtml(b.t)}</button>`).join('')}
+    </div>`;
+}
+
+function renderDetail(e) {
+  const chat = $('#chat');
+  chat.innerHTML = `
+    <div class="tg-msg">${e.icon} <b>${escapeHtml(e.name)}</b>\n🗂 ${escapeHtml(e.domain)}\nСостояние: <b>${escapeHtml(e.state_str)}</b></div>
+    <div class="tg-kb">
+      <button class="b full" data-act="${TG_PREV >= 0 ? 'g' + TG_PREV : 'm'}">◀ Назад</button>
+    </div>`;
+}
+
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('#chat [data-act]');
+  if (!btn) return;
+  const act = btn.getAttribute('data-act');
+  if (act === 'close') { closePreview(); return; }
+  if (act === 'm') { TG_PREV = null; renderPreview(); return; }
+  if (act === 's') { TG_PREV = -2; renderPreview(); return; }
+  if (act.startsWith('g')) {
+    const gi = parseInt(act.slice(1), 10);
+    if (gi >= 0 && gi < TG_GROUPS.length) { TG_PREV = gi; renderPreview(); }
+    return;
+  }
+  if (act.startsWith('x')) {
+    const e = TG_ENTITIES.find(x => x.entity_id === act.slice(1));
+    if (e) renderDetail(e);
+    return;
+  }
+});
+
+load();
+setInterval(() => load(false), 10000);
+</script>
+</body>
+</html>

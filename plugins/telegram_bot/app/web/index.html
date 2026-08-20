@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram Bot — конфигурация</title>
+<style>
+  :root {
+    --bg: #0b0b0d; --surface: rgba(255,255,255,.045);
+    --surface2: rgba(255,255,255,.07); --surface3: rgba(255,255,255,.11);
+    --border: rgba(255,255,255,.09); --border2: rgba(255,255,255,.2);
+    --text: #f4f4f5; --text2: #a1a1aa; --text3: #6d6d85;
+    --accent: #6366f1; --accent2: #8b5cf6; --cyan: #22d3ee;
+    --green: #34d399; --red: #f87171; --yellow: #fbbf24;
+    --gradient: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
+  }
+  html[data-theme="light"] {
+    --bg: #f2f4fb; --surface: rgba(255,255,255,.6);
+    --surface2: rgba(255,255,255,.85); --surface3: rgba(0,0,0,.06);
+    --border: rgba(15,23,42,.09); --border2: rgba(15,23,42,.2);
+    --text: #17182a; --text2: #55577a; --text3: #8b8daa;
+    --green: #059669; --red: #dc2626; --yellow: #d97706; --cyan: #0891b2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.5;
+    padding: 28px; max-width: 680px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+  .sub { color: var(--text2); font-size: 13px; margin-bottom: 22px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 2px 20px rgba(0,0,0,.25);
+  }
+  .card h2 { font-size: 13px; font-weight: 700; margin-bottom: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--text2); }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+  input, textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); padding: 9px 12px;
+    font-size: 13.5px; outline: none; margin-bottom: 12px; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.22); }
+  textarea { min-height: 80px; resize: vertical; font-family: ui-monospace, monospace; font-size: 12.5px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button {
+    background: var(--gradient); color: #fff; border: none;
+    border-radius: 10px; padding: 9px 18px; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(99,102,241,.3);
+    transition: filter .15s;
+  }
+  button:hover { filter: brightness(1.12); }
+  button.ghost { background: var(--surface2); color: var(--text); box-shadow: none; border: 1px solid var(--border); }
+  .status { font-size: 12px; color: var(--text2); }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.off { background: var(--text3); }
+  .dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .module {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; font-size: 13px;
+    background: var(--surface2);
+  }
+  .module .name { font-weight: 600; }
+  .module .st { margin-left: auto; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
+  .hint { font-size: 11.5px; color: var(--text3); margin: -6px 0 12px; }
+  #toast { position: fixed; bottom: 20px; right: 20px; z-index: 99; }
+  .toast-item {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    padding: 10px 16px; border-radius: 12px; font-size: 12.5px; font-weight: 600;
+    margin-top: 8px; backdrop-filter: blur(14px);
+    animation: in .2s;
+  }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <h1>Telegram Bot</h1>
+  <div class="sub">Главный хаб Home.Media: inline-меню всех модулей в Telegram</div>
+
+  <div class="card">
+    <h2>Статус</h2>
+    <div class="row" style="margin-bottom:4px">
+      <span class="status" id="st-status">…</span>
+    </div>
+    <div class="row" id="modules-box" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Конфигурация</h2>
+    <label>Токен бота (от @BotFather)</label>
+    <input type="password" id="bot_token" placeholder="123456:ABC-DEF…">
+    <div class="hint">Секрет — в бэкапе настроек не раскрывается.</div>
+
+    <label>Название бота (показывается в меню)</label>
+    <input type="text" id="bot_name" placeholder="Home.Media">
+
+    <label>Разрешённые user_id (по одному в строке, пусто = доступен всем)</label>
+    <textarea id="allowed_users" placeholder="123456789&#10;987654321"></textarea>
+
+    <div class="row">
+      <button id="btn-save" onclick="saveConfig()">Сохранить и перезапустить</button>
+      <button class="ghost" onclick="loadAll()">Обновить</button>
+      <span class="status" id="cfg-status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Команды бота</h2>
+    <div class="hint" style="margin:0; line-height:1.7">
+      /start — главное меню · /menu — то же · /status — состояние модулей · /help — справка<br>
+      Другие плагины подключают свои разделы через <code>bot_menu</code> в manifest.json — они появляются в меню автоматически.
+    </div>
+  </div>
+
+<script>
+  const parts = location.pathname.split('/')
+  const proxyIdx = parts.indexOf('proxy')
+  const PROXY = parts.slice(0, proxyIdx + 1).join('/')
+
+  async function api(path, opts = {}, timeoutMs = 35000) {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const r = await fetch(PROXY + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+        signal: ctrl.signal,
+      })
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || r.statusText)
+      return r.json()
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('Таймаут: ядро не ответило за ' + (timeoutMs / 1000) + 'с')
+      throw e
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  function toast(msg) {
+    const t = document.createElement('div')
+    t.className = 'toast-item'
+    t.textContent = msg
+    document.getElementById('toast').appendChild(t)
+    setTimeout(() => t.remove(), 2800)
+  }
+
+  function setStatus(id, text, ok = true) {
+    const el = document.getElementById(id)
+    el.textContent = text
+    el.className = 'status ' + (ok ? 'ok' : 'err')
+  }
+
+  function renderStatus(s) {
+    const el = document.getElementById('st-status')
+    if (s.running) {
+      el.innerHTML = '<span class="dot on"></span>Бот активен и принимает сообщения'
+      el.className = 'status ok'
+    } else if (s.configured) {
+      el.innerHTML = '<span class="dot err"></span>Токен задан, но бот не запущен' + (s.error ? ' — ' + s.error : '')
+      el.className = 'status err'
+    } else {
+      el.innerHTML = '<span class="dot off"></span>Бот не настроен — укажите токен ниже'
+      el.className = 'status'
+    }
+    const box = document.getElementById('modules-box')
+    box.innerHTML = ''
+    if (s.menu_plugins && s.menu_plugins.length) {
+      s.menu_plugins.forEach(m => {
+        const d = document.createElement('div')
+        d.className = 'module'
+        const st = m.status === 'running' ? '<span class="dot on"></span>' : '<span class="dot err"></span>'
+        d.innerHTML = st + '<span class="name"></span><span class="st"></span>'
+        d.querySelector('.name').textContent = m.title
+        d.querySelector('.st').textContent = m.status
+        box.appendChild(d)
+      })
+    } else {
+      box.innerHTML = '<div class="hint" style="margin:0">Модули с меню пока не подключены</div>'
+    }
+  }
+
+  async function loadConfig() {
+    try {
+      const { config } = await api('/config?masked=true')
+      document.getElementById('bot_token').value = config.bot_token || ''
+      document.getElementById('bot_name').value = config.bot_name || ''
+      const ids = Array.isArray(config.allowed_users) ? config.allowed_users : []
+      document.getElementById('allowed_users').value = ids.join('\n')
+    } catch (e) {
+      setStatus('cfg-status', '✗ ' + e.message, false)
+    }
+  }
+
+  async function loadStatus() {
+    try {
+      const s = await api('/bot/status')
+      renderStatus(s)
+    } catch (e) {
+      setStatus('st-status', '✗ ' + e.message, false)
+    }
+  }
+
+  async function saveConfig() {
+    const btn = document.getElementById('btn-save')
+    btn.disabled = true
+    btn.textContent = 'Отправка…'
+    try {
+      const ids = document.getElementById('allowed_users').value
+        .split('\n').map(s => s.trim()).filter(Boolean)
+        .map(s => parseInt(s, 10)).filter(n => !isNaN(n))
+      await api('/config', {
+        method: 'POST',
+        body: JSON.stringify({
+          bot_token:     document.getElementById('bot_token').value,
+          bot_name:      document.getElementById('bot_name').value,
+          allowed_users: ids,
+        }),
+      })
+      await api('/bot/restart', { method: 'POST', body: '{}' }, 15000)
+      toast('✓ Сохранено, бот перезапускается')
+      setStatus('cfg-status', '✓ сохранено')
+      setTimeout(loadStatus, 1200)
+    } catch (e) {
+      setStatus('cfg-status', '✗ ' + e.message, false)
+      toast('✗ ' + e.message)
+    } finally {
+      btn.disabled = false
+      btn.textContent = 'Сохранить и перезапустить'
+    }
+  }
+
+  async function loadAll() {
+    await Promise.all([loadConfig(), loadStatus()])
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'hm:theme') document.documentElement.setAttribute('data-theme', e.data.theme)
+  })
+  document.documentElement.setAttribute('data-theme', new URLSearchParams(location.search).get('theme') || 'dark')
+
+  loadAll()
+</script>
+</body>
+</html>

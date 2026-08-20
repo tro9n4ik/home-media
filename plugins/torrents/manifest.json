@@ -1,0 +1,21 @@
+{
+  "id": "torrents",
+  "name": "Torrents",
+  "version": "1.0.0",
+  "description": "Менеджер загрузок: qBittorrent, поиск через Prowlarr, подписки на новые эпизоды",
+  "has_ui": true,
+  "port_hint": 8102,
+  "config_secrets": ["qbit_pass", "tmdb_token", "prowlarr_key"],
+  "bot_menu": {
+    "title": "Торренты",
+    "icon": "🧲",
+    "order": 80
+  },
+  "ui_pages": [
+    {
+      "title": "Torrents",
+      "path": "/admin/plugins/torrents",
+      "icon": "download"
+    }
+  ]
+}

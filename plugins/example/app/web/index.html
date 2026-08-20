@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example Plugin</title>
+<style>
+  :root {
+    --bg: #0b0b0d; --surface: #151517; --surface2: #1e1e21;
+    --border: #2a2a2f; --text: #f4f4f5; --text2: #a1a1aa;
+    --accent: #6366f1; --green: #22c55e; --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.5;
+    padding: 24px; max-width: 640px; margin: 0 auto;
+  }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .sub { color: var(--text2); font-size: 12px; margin-bottom: 20px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 14px;
+  }
+  .card h2 { font-size: 13px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  input[type=text], input[type=password], input[type=number] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 8px 10px;
+    font-size: 13px; outline: none; margin-bottom: 10px; font-family: inherit;
+  }
+  button {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 6px; padding: 8px 14px; font-size: 13px;
+    cursor: pointer; font-family: inherit;
+  }
+  button.ghost { background: var(--surface2); color: var(--text); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .status { font-size: 12px; color: var(--text2); }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  #toast { position: fixed; bottom: 16px; right: 16px; }
+  .toast-item {
+    background: var(--accent); color: #fff; padding: 8px 14px;
+    border-radius: 6px; font-size: 12px; margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+  <h1>Example Plugin</h1>
+  <div class="sub">Шаблон плагина — здесь форма конфига и демо API</div>
+
+  <div class="card">
+    <h2>Конфигурация</h2>
+    <label>Текст приветствия</label>
+    <input type="text" id="message">
+    <label>Интервал фоновой задачи (сек)</label>
+    <input type="number" id="interval">
+    <label>Секретный API-ключ</label>
+    <input type="password" id="api_key">
+    <div class="row">
+      <button onclick="saveConfig()">Сохранить</button>
+      <button class="ghost" onclick="loadConfig()">Перезагрузить</button>
+      <span class="status" id="cfg-status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Демо API</h2>
+    <div class="row">
+      <button class="ghost" onclick="callHello()">Вызвать /hello</button>
+      <span class="status" id="hello-status"></span>
+    </div>
+  </div>
+
+<script>
+  // Базовый URL прокси ядра: /api/plugins/{id}/proxy
+  // (в iframe путь заканчивается на /ui/)
+  const parts = location.pathname.split('/')
+  const proxyIdx = parts.indexOf('proxy')
+  const PROXY = parts.slice(0, proxyIdx + 1).join('/')
+
+  async function api(path, opts = {}) {
+    const r = await fetch(PROXY + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    })
+    if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || r.statusText)
+    return r.json()
+  }
+
+  function toast(msg) {
+    const t = document.createElement('div')
+    t.className = 'toast-item'
+    t.textContent = msg
+    document.getElementById('toast').appendChild(t)
+    setTimeout(() => t.remove(), 2500)
+  }
+
+  function setStatus(id, text, ok = true) {
+    const el = document.getElementById(id)
+    el.textContent = text
+    el.className = 'status ' + (ok ? 'ok' : 'err')
+  }
+
+  async function loadConfig() {
+    try {
+      const { config, schema } = await api('/config?masked=true')
+      document.getElementById('message').value = config.message ?? ''
+      document.getElementById('interval').value = config.interval ?? ''
+      document.getElementById('api_key').value = config.api_key || ''
+      setStatus('cfg-status', '✓ загружено')
+    } catch (e) {
+      setStatus('cfg-status', '✗ ' + e.message, false)
+    }
+  }
+
+  async function saveConfig() {
+    try {
+      await api('/config', {
+        method: 'POST',
+        body: JSON.stringify({
+          message:   document.getElementById('message').value,
+          interval:  parseInt(document.getElementById('interval').value || '0'),
+          api_key:   document.getElementById('api_key').value,
+        }),
+      })
+      toast('✓ Конфиг сохранён')
+      setStatus('cfg-status', '✓ сохранено')
+    } catch (e) {
+      setStatus('cfg-status', '✗ ' + e.message, false)
+    }
+  }
+
+  async function callHello() {
+    try {
+      const data = await api('/hello')
+      setStatus('hello-status', '→ ' + data.message)
+    } catch (e) {
+      setStatus('hello-status', '✗ ' + e.message, false)
+    }
+  }
+
+  loadConfig()
+</script>
+</body>
+</html>

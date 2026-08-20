@@ -1,0 +1,44 @@
+version: "3.9"
+
+# Home.Media v4 для Synology DSM 7.2+ / Container Manager 2.x
+# Плагины запускаются как Python процессы внутри контейнера ядра.
+# Docker не нужен для работы плагинов.
+
+services:
+  home-media-postgres:
+    image: postgres:16-alpine
+    container_name: home-media-postgres
+    environment:
+      POSTGRES_USER: hm
+      POSTGRES_PASSWORD: hm
+      POSTGRES_DB: home_media
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - home-media-net
+
+  home-media:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: home-media
+    environment:
+      DATABASE_URL: postgresql+psycopg://hm:hm@home-media-postgres:5432/home_media
+      DATA_DIR: /app/data
+      PIP_INDEX_URL: https://mirrors.aliyun.com/pypi/simple/
+    ports:
+      - "8142:8142"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - home-media-postgres
+    restart: unless-stopped
+    networks:
+      - home-media-net
+
+networks:
+  home-media-net:
+    name: home-media-net
+    driver: bridge

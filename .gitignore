@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+*.db
+*.log
+
+# Node
+node_modules/
+admin/dist/
+
+# РЎРµРєСЂРµС‚С‹
+.env
+.env.local
+
+# Р РµРґР°РєС‚РѕСЂС‹ / РћРЎ
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+# Тестовые артефакты
+.coverage

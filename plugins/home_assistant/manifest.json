@@ -1,0 +1,21 @@
+{
+  "id": "home_assistant",
+  "name": "Умный дом",
+  "version": "1.0.0",
+  "description": "Управление Home Assistant: мониторинг датчиков, контроль света, климата, розеток, медиа, штор и замков — из Telegram и веб-панели",
+  "has_ui": true,
+  "port_hint": 8103,
+  "config_secrets": ["ha_token"],
+  "bot_menu": {
+    "title": "🏠 Умный дом",
+    "icon": "🏠",
+    "order": 70
+  },
+  "ui_pages": [
+    {
+      "title": "Умный дом",
+      "path": "/admin/plugins/home_assistant",
+      "icon": "home"
+    }
+  ]
+}

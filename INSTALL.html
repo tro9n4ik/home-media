@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home.Media — Установка на Synology</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f12;
+    color: #e4e4e7;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  /* Header */
+  .hero {
+    text-align: center;
+    padding: 48px 32px 40px;
+    background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(6,182,212,.08));
+    border: 1px solid rgba(99,102,241,.25);
+    border-radius: 20px;
+    margin-bottom: 40px;
+  }
+  .hero-icon { font-size: 56px; margin-bottom: 16px; }
+  .hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .hero p  { font-size: 15px; color: #a1a1aa; }
+  .badge {
+    display: inline-block; margin-top: 16px;
+    padding: 4px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: rgba(99,102,241,.2); color: #a5b4fc;
+    border: 1px solid rgba(99,102,241,.3);
+  }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+
+  .step {
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .step:hover { border-color: rgba(99,102,241,.35); }
+
+  .step-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700;
+    background: rgba(99,102,241,.2); color: #a5b4fc;
+    border: 1px solid rgba(99,102,241,.3);
+  }
+  .step-num.done { background: rgba(34,197,94,.2); color: #86efac; border-color: rgba(34,197,94,.3); }
+  .step-title { font-size: 16px; font-weight: 600; flex: 1; }
+  .step-time { font-size: 12px; color: #52525b; }
+  .chevron { font-size: 14px; color: #52525b; transition: transform .2s; }
+  .step.open .chevron { transform: rotate(180deg); }
+
+  .step-body {
+    display: none;
+    padding: 0 24px 24px;
+  }
+  .step.open .step-body { display: block; }
+
+  /* Content blocks */
+  .desc { font-size: 14px; color: #a1a1aa; margin-bottom: 20px; line-height: 1.6; }
+
+  .action-box {
+    background: #0f0f12;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .action-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    color: #52525b; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .action-steps { display: flex; flex-direction: column; gap: 10px; }
+  .action-step {
+    display: flex; align-items: flex-start; gap: 12px; font-size: 14px;
+  }
+  .action-step-num {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(99,102,241,.15); color: #a5b4fc;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; margin-top: 1px;
+  }
+  .action-step-text { color: #d4d4d8; line-height: 1.5; }
+  .action-step-text b { color: #fff; }
+  .action-step-text code {
+    background: rgba(255,255,255,.08); padding: 1px 6px;
+    border-radius: 4px; font-family: ui-monospace, monospace; font-size: 13px;
+    color: #a5b4fc;
+  }
+
+  /* Screenshot placeholder */
+  .screenshot {
+    background: #0f0f12;
+    border: 1px dashed rgba(255,255,255,.12);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .screen-icon { font-size: 28px; flex-shrink: 0; }
+  .screen-caption { font-size: 13px; color: #71717a; line-height: 1.5; }
+  .screen-caption b { color: #a1a1aa; }
+
+  /* Path pill */
+  .path {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(6,182,212,.1); color: #67e8f9;
+    border: 1px solid rgba(6,182,212,.2);
+    border-radius: 8px; padding: 5px 12px;
+    font-family: ui-monospace, monospace; font-size: 13px;
+    margin: 8px 0;
+  }
+
+  /* Done button */
+  .done-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 20px; padding: 9px 20px;
+    background: rgba(34,197,94,.15); color: #86efac;
+    border: 1px solid rgba(34,197,94,.25);
+    border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: .15s;
+  }
+  .done-btn:hover { background: rgba(34,197,94,.25); }
+
+  /* Result */
+  .result {
+    background: linear-gradient(135deg, rgba(99,102,241,.1), rgba(6,182,212,.06));
+    border: 1px solid rgba(99,102,241,.25);
+    border-radius: 16px; padding: 28px 24px;
+    text-align: center; margin-top: 32px;
+  }
+  .result h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .result p  { font-size: 14px; color: #a1a1aa; }
+  .open-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 20px; padding: 11px 28px;
+    background: #6366f1; color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    text-decoration: none; transition: .15s;
+  }
+  .open-btn:hover { background: #5254cc; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: rgba(255,255,255,.06);
+    border-radius: 999px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #06b6d4);
+    border-radius: 999px;
+    transition: width .4s ease;
+    width: 0%;
+  }
+
+  /* Tip */
+  .tip {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2);
+    border-radius: 10px; padding: 12px 16px; margin-top: 16px;
+    font-size: 13px; color: #fcd34d; line-height: 1.5;
+  }
+  .tip-icon { flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-icon">🏠</div>
+    <h1>Home.Media v4</h1>
+    <p>Установка на Synology NAS — без консоли, только через веб-интерфейс</p>
+    <div class="badge">DSM 7.2+ · Container Manager 2.x</div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+  <div class="steps" id="steps">
+
+    <!-- ── Шаг 1 ── -->
+    <div class="step open" id="step-1">
+      <div class="step-header" onclick="toggleStep(1)">
+        <div class="step-num" id="num-1">1</div>
+        <div class="step-title">Загрузить файлы на NAS</div>
+        <div class="step-time">~2 мин</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="step-body">
+        <div class="desc">
+          Нужно скопировать папку с проектом на NAS. Проще всего через <b>File Station</b> в браузере.
+        </div>
+
+        <div class="action-box">
+          <div class="action-label">Через File Station (браузер)</div>
+          <div class="action-steps">
+            <div class="action-step">
+              <div class="action-step-num">1</div>
+              <div class="action-step-text">
+                Откройте <b>DSM → File Station</b> и перейдите в папку <code>docker</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">2</div>
+              <div class="action-step-text">
+                Нажмите <b>Загрузить → Пропустить</b> и загрузите файл <code>home-media-v4.zip</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">3</div>
+              <div class="action-step-text">
+                Правой кнопкой на zip → <b>Извлечь</b> → извлечь в папку <code>docker</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">4</div>
+              <div class="action-step-text">
+                Убедитесь что появилась папка:
+                <div class="path">📁 /docker/hm3</div>
+                внутри которой файл <code>docker-compose.yml</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screenshot">
+          <div class="screen-icon">💡</div>
+          <div class="screen-caption">
+            <b>Где находится папка docker?</b><br>
+            File Station → слева в дереве папок → <code>docker</code>.
+            Если папки нет — создайте её: <b>Создать → Создать папку</b> → назовите <code>docker</code>.
+          </div>
+        </div>
+
+        <button class="done-btn" onclick="markDone(1)">✓ Файлы загружены</button>
+      </div>
+    </div>
+
+    <!-- ── Шаг 2 ── -->
+    <div class="step" id="step-2">
+      <div class="step-header" onclick="toggleStep(2)">
+        <div class="step-num" id="num-2">2</div>
+        <div class="step-title">Открыть Container Manager</div>
+        <div class="step-time">~1 мин</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="step-body">
+        <div class="desc">
+          Container Manager — это встроенный Docker-менеджер Synology. Если его нет — установите из Package Center.
+        </div>
+
+        <div class="action-box">
+          <div class="action-label">Шаги</div>
+          <div class="action-steps">
+            <div class="action-step">
+              <div class="action-step-num">1</div>
+              <div class="action-step-text">
+                Откройте <b>DSM → Package Center</b> и убедитесь что <b>Container Manager</b> установлен
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">2</div>
+              <div class="action-step-text">
+                Откройте <b>Container Manager</b> из главного меню DSM
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">3</div>
+              <div class="action-step-text">
+                В левом меню нажмите <b>Project</b>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="done-btn" onclick="markDone(2)">✓ Container Manager открыт</button>
+      </div>
+    </div>
+
+    <!-- ── Шаг 3 ── -->
+    <div class="step" id="step-3">
+      <div class="step-header" onclick="toggleStep(3)">
+        <div class="step-num" id="num-3">3</div>
+        <div class="step-title">Создать проект из папки</div>
+        <div class="step-time">~2 мин</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="step-body">
+        <div class="desc">
+          Container Manager умеет читать <code>docker-compose.yml</code> прямо из папки на NAS. Именно этим мы воспользуемся.
+        </div>
+
+        <div class="action-box">
+          <div class="action-label">Container Manager → Project</div>
+          <div class="action-steps">
+            <div class="action-step">
+              <div class="action-step-num">1</div>
+              <div class="action-step-text">
+                Нажмите кнопку <b>Create</b>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">2</div>
+              <div class="action-step-text">
+                В поле <b>Project name</b> введите: <code>home-media</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">3</div>
+              <div class="action-step-text">
+                В поле <b>Path</b> нажмите иконку папки и выберите:
+                <div class="path">📁 docker/hm3</div>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">4</div>
+              <div class="action-step-text">
+                Container Manager автоматически найдёт <code>docker-compose.yml</code> и покажет его содержимое — ничего менять не нужно
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">5</div>
+              <div class="action-step-text">
+                Нажмите <b>Next → Next → Done</b>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="tip-icon">⚠️</div>
+          <div>
+            Первый запуск занимает <b>5–15 минут</b> — Docker скачивает образы Node.js, Python, PostgreSQL и собирает React.
+            Это только один раз. Прогресс видно во вкладке <b>Log</b> проекта.
+          </div>
+        </div>
+
+        <button class="done-btn" onclick="markDone(3)">✓ Проект создан и запущен</button>
+      </div>
+    </div>
+
+    <!-- ── Шаг 4 ── -->
+    <div class="step" id="step-4">
+      <div class="step-header" onclick="toggleStep(4)">
+        <div class="step-num" id="num-4">4</div>
+        <div class="step-title">Подождать сборки и открыть</div>
+        <div class="step-time">~10 мин (только первый раз)</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="step-body">
+        <div class="desc">
+          Пока контейнеры собираются, можно следить за прогрессом в Container Manager.
+        </div>
+
+        <div class="action-box">
+          <div class="action-label">Как следить за прогрессом</div>
+          <div class="action-steps">
+            <div class="action-step">
+              <div class="action-step-num">1</div>
+              <div class="action-step-text">
+                Container Manager → <b>Project → home-media</b>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">2</div>
+              <div class="action-step-text">
+                Вкладка <b>Log</b> — видно процесс сборки React и установки Python-пакетов
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">3</div>
+              <div class="action-step-text">
+                Когда в логе появится строка <code>Application startup complete</code> — всё готово
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-box">
+          <div class="action-label">Открыть Home.Media</div>
+          <div class="action-steps">
+            <div class="action-step">
+              <div class="action-step-num">1</div>
+              <div class="action-step-text">
+                Откройте браузер и перейдите по адресу вашего NAS на порту <code>8142</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">2</div>
+              <div class="action-step-text">
+                Пример: <code>http://192.168.1.100:8142</code>
+                <br>или через QuickConnect: <code>http://YOURNAS.local:8142</code>
+              </div>
+            </div>
+            <div class="action-step">
+              <div class="action-step-num">3</div>
+              <div class="action-step-text">
+                При первом входе откроется мастер создания аккаунта — введите логин и пароль
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="open-section" style="display:none">
+          <div style="margin-top:16px;font-size:13px;color:#71717a;margin-bottom:8px">
+            Введите IP вашего NAS:
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="nas-ip" type="text" value="192.168.1.100"
+              style="background:#0f0f12;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#e4e4e7;font-size:13px;padding:7px 12px;outline:none;font-family:ui-monospace,monospace;width:180px"
+              oninput="updateLink()" />
+            <a id="open-link" href="http://192.168.1.100:8142" target="_blank" class="open-btn">
+              🚀 Открыть Home.Media
+            </a>
+          </div>
+        </div>
+
+        <button class="done-btn" onclick="markDone(4); document.getElementById('open-section').style.display='block'">
+          ✓ Сервис запустился
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /steps -->
+
+  <!-- Result -->
+  <div class="result" id="result" style="display:none">
+    <div style="font-size:48px;margin-bottom:16px">🎉</div>
+    <h2>Home.Media установлен!</h2>
+    <p>Все шаги выполнены. Введите IP вашего NAS и откройте интерфейс.</p>
+    <div style="margin-top:20px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
+      <input id="nas-ip-2" type="text" value="192.168.1.100"
+        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#e4e4e7;font-size:14px;padding:8px 14px;outline:none;font-family:ui-monospace,monospace;width:180px"
+        oninput="updateLink2()" />
+      <a id="open-link-2" href="http://192.168.1.100:8142" target="_blank" class="open-btn">
+        🚀 Открыть Home.Media
+      </a>
+    </div>
+    <div style="margin-top:20px;font-size:12px;color:#52525b">
+      Для перезапуска: Container Manager → Project → home-media → Action → Restart
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+  const TOTAL = 4
+  let done = new Set()
+
+  function toggleStep(n) {
+    const el = document.getElementById('step-' + n)
+    el.classList.toggle('open')
+  }
+
+  function markDone(n) {
+    done.add(n)
+    const num = document.getElementById('num-' + n)
+    num.textContent = '✓'
+    num.classList.add('done')
+
+    // Открываем следующий шаг
+    if (n < TOTAL) {
+      document.getElementById('step-' + n).classList.remove('open')
+      document.getElementById('step-' + (n+1)).classList.add('open')
+    }
+
+    // Прогресс
+    const pct = Math.round((done.size / TOTAL) * 100)
+    document.getElementById('progress').style.width = pct + '%'
+
+    // Финал
+    if (done.size === TOTAL) {
+      document.getElementById('result').style.display = 'block'
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  function updateLink() {
+    const ip = document.getElementById('nas-ip').value.trim()
+    const url = 'http://' + ip + ':8142'
+    document.getElementById('open-link').href = url
+  }
+
+  function updateLink2() {
+    const ip = document.getElementById('nas-ip-2').value.trim()
+    const url = 'http://' + ip + ':8142'
+    document.getElementById('open-link-2').href = url
+  }
+
+  // Попробуем определить IP NAS из текущего URL
+  const host = window.location.hostname
+  if (host && host !== '' && host !== 'localhost') {
+    document.getElementById('nas-ip').value = host
+    document.getElementById('nas-ip-2').value = host
+    updateLink(); updateLink2()
+  }
+</script>
+</body>
+</html>

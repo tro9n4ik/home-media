@@ -1,0 +1,21 @@
+{
+  "id": "example",
+  "name": "Example Plugin",
+  "version": "1.0.0",
+  "description": "Шаблон плагина для Home.Media v4 — включая Telegram-меню",
+  "has_ui": true,
+  "port_hint": 8100,
+  "config_secrets": ["api_key"],
+  "bot_menu": {
+    "title": "Example",
+    "icon": "🧪",
+    "order": 90
+  },
+  "ui_pages": [
+    {
+      "title": "Example",
+      "path": "/admin/plugins/example",
+      "icon": "puzzle"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "telegram_bot",
+  "name": "Telegram Bot",
+  "version": "1.0.0",
+  "description": "Телеграм-бот с inline-меню — хаб всех плагинов Home.Media",
+  "has_ui": true,
+  "port_hint": 8101,
+  "config_secrets": ["bot_token"],
+  "ui_pages": [
+    {
+      "title": "Telegram Bot",
+      "path": "/admin/plugins/telegram_bot",
+      "icon": "send"
+    }
+  ]
+}

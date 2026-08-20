@@ -1,0 +1,17 @@
+# Мусор и артефакты — не тащим в контекст сборки
+node_modules/
+admin/node_modules/
+admin/dist/
+core/app/web/static/admin/
+__pycache__/
+*.pyc
+*.log
+*.db
+.venv/
+data/
+.env
+.git/
+.gitignore
+bot.py
+bot_config.json
+setup.md
