@@ -556,6 +556,10 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
             mark = "🟡" if e["state"] == "on" else "⚫"
             buttons.append({"text": f"{mark} {title[:40]}",
                             "action": f"hat:{_enc(e['entity_id'])}:{act}:g{idx}:{page}"})
+        elif e["domain"] in ("sensor", "binary_sensor"):
+            # датчики: значение прямо в тексте кнопки, клик — детали
+            buttons.append({"text": f"{e['icon']} {title[:30]} — {e['state_str'][:30]}",
+                            "action": f"had:{_enc(e['entity_id'])}"})
         else:
             buttons.append({"text": f"{e['icon']} {title[:40]}", "action": f"had:{_enc(e['entity_id'])}"})
     pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
@@ -646,6 +650,9 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
             mark = "🟡" if e["state"] == "on" else "⚫"
             buttons.append({"text": f"{mark} {e['name'][:40]}",
                             "action": f"hat:{_enc(eid)}:{act}:d{domain}:{page}"})
+        elif e["domain"] in ("sensor", "binary_sensor"):
+            buttons.append({"text": f"{e['icon']} {e['name'][:30]} — {e['state_str'][:30]}",
+                            "action": f"had:{_enc(eid)}"})
         else:
             buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
     pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
