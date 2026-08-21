@@ -545,12 +545,6 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
         return {"text": f"{g['icon']} <b>{g['name']}</b>\n\nПусто — добавьте сущности в конфигураторе.",
                 "buttons": [{"text": "◀ Назад", "action": "hamain"}]}
     chunk = _page_of(ents, page)
-    lines = [f"{g['icon']} <b>{g['name']}</b> ({len(ents)}):"]
-    for it in chunk:
-        e = _find(it["id"])
-        if e:
-            title = it["title"] or e["name"]
-            lines.append(f"{e['icon']} {title} — <b>{e['state_str']}</b>")
     buttons = []
     for it in chunk:
         e = _find(it["id"])
@@ -571,7 +565,7 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
     nav.append({"text": "◀ Назад", "action": "hamain"})
     if (page + 1) * PAGE_SIZE < len(ents):
         nav.append({"text": "▶", "action": f"hag:{idx}:{page + 1}"})
-    return {"text": "\n".join(lines), "buttons": pairs + [nav]}
+    return {"text": f"{g['icon']} <b>{g['name']}</b> ({len(ents)})", "buttons": pairs + [nav]}
 
 
 async def _menu_entity(entity_id: str) -> dict:
@@ -642,11 +636,6 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
     icon = {"light": "💡", "climate": "🌡", "switch": "🔌", "fan": "🌀",
             "media_player": "📺", "cover": "🪟", "lock": "🔒", "sensor": "📊"}.get(domain, "▪")
     chunk = _page_of(ids, page)
-    lines = [f"{icon} <b>{_DOMAIN_LABELS.get(domain, domain)}</b> ({len(ids)}):"]
-    for eid in chunk:
-        e = _find(eid)
-        if e:
-            lines.append(f"{e['icon']} {e['name']} — <b>{e['state_str']}</b>")
     buttons = []
     for eid in chunk:
         e = _find(eid)
@@ -666,7 +655,7 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
     nav.append({"text": "◀ Назад", "action": "hamain"})
     if (page + 1) * PAGE_SIZE < len(ids):
         nav.append({"text": "▶", "action": f"hal:{domain}:{page + 1}"})
-    return {"text": "\n".join(lines), "buttons": pairs + [nav]}
+    return {"text": f"{icon} <b>{_DOMAIN_LABELS.get(domain, domain)}</b> ({len(ids)})", "buttons": pairs + [nav]}
 
 
 # ── HTTP API ──────────────────────────────────────────────────────────────────
