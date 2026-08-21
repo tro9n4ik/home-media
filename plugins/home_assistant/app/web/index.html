@@ -757,6 +757,39 @@ function tgUnassigned() {
   return TG_ENTITIES.filter(e => !used.has(e.entity_id));
 }
 
+function pairSensors(entities) {
+  // группирует temperature+humidity с общим базовым именем
+  const byBase = {};
+  const suffixes = ['_temperature', '_humidity', '_temp', '_hum'];
+  entities.forEach(e => {
+    if (!['sensor', 'binary_sensor'].includes(e.domain)) return;
+    let base = e.entity_id;
+    for (const sfx of suffixes) {
+      if (base.endsWith(sfx)) { base = base.slice(0, -sfx.length); break; }
+    }
+    if (base === e.entity_id) return;
+    const key = e.entity_id.split('.').pop(); // 'temperature' или 'humidity'
+    (byBase[base] = byBase[base] || {})[key] = e;
+  });
+  const result = [];
+  const used = new Set();
+  for (const parts of Object.values(byBase)) {
+    if (parts.temperature && parts.humidity) {
+      result.push({ type: 'pair', temp: parts.temperature, hum: parts.humidity });
+      used.add(parts.temperature.entity_id);
+      used.add(parts.humidity.entity_id);
+    } else {
+      Object.values(parts).forEach(e => { if (!used.has(e.entity_id)) result.push(e); });
+    }
+  }
+  entities.forEach(e => {
+    if (['sensor', 'binary_sensor'].includes(e.domain) && !used.has(e.entity_id)) {
+      result.push(e);
+    }
+  });
+  return result;
+}
+
 function tgMarkDirty() {
   const snap = JSON.stringify({ g: TG_GROUPS, s: TG_SHOW_SENSORS });
   TG_DIRTY = snap !== TG_BASE_SNAP;
@@ -1107,8 +1140,21 @@ function renderPreview() {
     if (!g) { closePreview(); return; }
     const entries = (g.entities || []).map(it => ({ it, e: TG_ENTITIES.find(x => x.entity_id === entId(it)) })).filter(o => o.e);
     const label = o => o.it.title || o.e.name;
-    msg = `${g.icon || '▪'} <b>${g.name}</b> (${entries.length}):\n${entries.map(o => `${o.e.icon} ${label(o)} — <b>${o.e.state_str}</b>`).join('\n')}`;
-    entries.forEach(o => kb.push({ t: `${o.e.icon} ${label(o)}`, d: 'x' + o.e.entity_id }));
+    const paired = pairSensors(entries.map(o => o.e));
+    msg = `${g.icon || '▪'} <b>${g.name}</b> (${paired.length}):\n${paired.map(item => {
+      if (item.type === 'pair') {
+        const t = item.temp, h = item.hum;
+        return `🌡 ${label({it:{},e:t})} — <b>${t.state_str}</b>  💧 <b>${h.state_str}</b>`;
+      }
+      return `${item.icon} ${label({it:{},e:item})} — <b>${item.state_str}</b>`;
+    }).join('\n')}`;
+    paired.forEach(item => {
+      if (item.type === 'pair') {
+        kb.push({ t: `🌡 ${item.temp.name} — ${item.temp.state_str}  💧 ${item.hum.state_str}`, d: 'x' + item.temp.entity_id });
+      } else {
+        kb.push({ t: `${item.icon} ${label({it:{},e:item})}`, d: 'x' + item.entity_id });
+      }
+    });
     kb.push({ t: '◀ Назад', full: true, d: 'm' });
   }
   chat.innerHTML = `
