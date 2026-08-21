@@ -768,7 +768,7 @@ function pairSensors(entities) {
       if (base.endsWith(sfx)) { base = base.slice(0, -sfx.length); break; }
     }
     if (base === e.entity_id) return;
-    const key = e.entity_id.split('.').pop(); // 'temperature' или 'humidity'
+    const key = e.entity_id.split('.').pop();
     (byBase[base] = byBase[base] || {})[key] = e;
   });
   const result = [];
@@ -779,7 +779,12 @@ function pairSensors(entities) {
       used.add(parts.temperature.entity_id);
       used.add(parts.humidity.entity_id);
     } else {
-      Object.values(parts).forEach(e => { if (!used.has(e.entity_id)) result.push(e); });
+      Object.values(parts).forEach(e => {
+        if (!used.has(e.entity_id)) {
+          result.push(e);
+          used.add(e.entity_id);  // запомнить, чтобы не добавить повторно ниже
+        }
+      });
     }
   }
   entities.forEach(e => {
