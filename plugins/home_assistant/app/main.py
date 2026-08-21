@@ -537,12 +537,15 @@ async def _menu_main() -> dict:
 
 def _pair_sensors(entities: list[dict]) -> list[dict]:
     """Группирует temperature+humidity датчики с общим базовым именем в один элемент.
-    Возвращает список элементов: одиночные датчики или пары {type:'pair', temp, hum}."""
+    Не-сенсорные сущности (switch и др.) возвращаются без изменений."""
     by_base = {}
     suffixes = ("_temperature", "_humidity", "_temp", "_hum")
-    for e in entities:
-        if e["domain"] not in ("sensor", "binary_sensor"):
-            continue
+    non_sensor = [e for e in entities if e["domain"] not in ("sensor", "binary_sensor")]
+    sensors = [e for e in entities if e["domain"] in ("sensor", "binary_sensor")]
+    
+    by_base = {}
+    suffixes = ("_temperature", "_humidity", "_temp", "_hum")
+    for e in sensors:
         base = e["entity_id"]
         for sfx in suffixes:
             if base.endswith(sfx):
@@ -564,9 +567,11 @@ def _pair_sensors(entities: list[dict]) -> list[dict]:
                 if e["entity_id"] not in used:
                     result.append(e)
     # добавляем датчики, не подпавшие под суффиксы
-    for e in entities:
-        if e["domain"] in ("sensor", "binary_sensor") and e["entity_id"] not in used:
+    for e in sensors:
+        if e["entity_id"] not in used:
             result.append(e)
+    # добавляем не-сенсорные сущности без изменений
+    result.extend(non_sensor)
     return result
 
 
