@@ -535,6 +535,41 @@ async def _menu_main() -> dict:
     return {"text": "\n".join(lines), "buttons": buttons}
 
 
+def _pair_sensors(entities: list[dict]) -> list[dict]:
+    """Группирует temperature+humidity датчики с общим базовым именем в один элемент.
+    Возвращает список элементов: одиночные датчики или пары {type:'pair', temp, hum}."""
+    by_base = {}
+    suffixes = ("_temperature", "_humidity", "_temp", "_hum")
+    for e in entities:
+        if e["domain"] not in ("sensor", "binary_sensor"):
+            continue
+        base = e["entity_id"]
+        for sfx in suffixes:
+            if base.endswith(sfx):
+                base = base[:-len(sfx)]
+                break
+        else:
+            # не похож на температуру/влажность — оставляем как есть
+            continue
+        by_base.setdefault(base, {})[e["entity_id"].split(".")[-1]] = e
+    used = set()
+    result = []
+    for base, parts in by_base.items():
+        if "temperature" in parts and "humidity" in parts:
+            result.append({"type": "pair", "temp": parts["temperature"], "hum": parts["humidity"]})
+            used.add(parts["temperature"]["entity_id"])
+            used.add(parts["humidity"]["entity_id"])
+        else:
+            for e in parts.values():
+                if e["entity_id"] not in used:
+                    result.append(e)
+    # добавляем датчики, не подпавшие под суффиксы
+    for e in entities:
+        if e["domain"] in ("sensor", "binary_sensor") and e["entity_id"] not in used:
+            result.append(e)
+    return result
+
+
 async def _menu_group(idx: int, page: int = 0) -> dict:
     groups = _tg_groups()
     if idx >= len(groups):
@@ -545,23 +580,37 @@ async def _menu_group(idx: int, page: int = 0) -> dict:
         return {"text": f"{g['icon']} <b>{g['name']}</b>\n\nПусто — добавьте сущности в конфигураторе.",
                 "buttons": [{"text": "◀ Назад", "action": "hamain"}]}
     chunk = _page_of(ents, page)
-    buttons = []
+    # маппинг entity_id -> it для title
+    it_map = {it["id"]: it for it in chunk}
+    # полные сущности чанка
+    chunk_entities = []
     for it in chunk:
         e = _find(it["id"])
-        if not e:
-            continue
-        title = it["title"] or e["name"]
-        if e["domain"] in _TOGGLE_DOMAINS:
-            act = "on" if e["state"] != "on" else "off"
-            mark = "🟡" if e["state"] == "on" else "⚫"
-            buttons.append({"text": f"{mark} {title[:40]}",
-                            "action": f"hat:{_enc(e['entity_id'])}:{act}:g{idx}:{page}"})
-        elif e["domain"] in ("sensor", "binary_sensor"):
-            # датчики: значение прямо в тексте кнопки, клик — детали
-            buttons.append({"text": f"{e['icon']} {title[:30]} — {e['state_str'][:30]}",
-                            "action": f"had:{_enc(e['entity_id'])}"})
+        if e:
+            chunk_entities.append(e)
+    # парсим температуру+влажность
+    paired = _pair_sensors(chunk_entities)
+    buttons = []
+    for item in paired:
+        if isinstance(item, dict) and item.get("type") == "pair":
+            t = item["temp"]
+            h = item["hum"]
+            btn_text = f"🌡 {t['name'][:25]} — {t['state_str'][:20]}  💧 {h['state_str'][:15]}"
+            buttons.append({"text": btn_text, "action": f"had:{_enc(t['entity_id'])}"})
         else:
-            buttons.append({"text": f"{e['icon']} {title[:40]}", "action": f"had:{_enc(e['entity_id'])}"})
+            e = item
+            it = it_map.get(e["entity_id"])
+            title = it["title"] or e["name"] if it else e["name"]
+            if e["domain"] in _TOGGLE_DOMAINS:
+                act = "on" if e["state"] != "on" else "off"
+                mark = "🟡" if e["state"] == "on" else "⚫"
+                buttons.append({"text": f"{mark} {title[:40]}",
+                                "action": f"hat:{_enc(e['entity_id'])}:{act}:g{idx}:{page}"})
+            elif e["domain"] in ("sensor", "binary_sensor"):
+                buttons.append({"text": f"{e['icon']} {title[:30]} — {e['state_str'][:30]}",
+                                "action": f"had:{_enc(e['entity_id'])}"})
+            else:
+                buttons.append({"text": f"{e['icon']} {title[:40]}", "action": f"had:{_enc(e['entity_id'])}"})
     pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     nav = []
     if page > 0:
@@ -640,21 +689,32 @@ async def _menu_domain_list(domain: str, page: int = 0) -> dict:
     icon = {"light": "💡", "climate": "🌡", "switch": "🔌", "fan": "🌀",
             "media_player": "📺", "cover": "🪟", "lock": "🔒", "sensor": "📊"}.get(domain, "▪")
     chunk = _page_of(ids, page)
-    buttons = []
+    # собираем сущности чанка
+    chunk_entities = []
     for eid in chunk:
         e = _find(eid)
-        if not e:
-            continue
-        if e["domain"] in _TOGGLE_DOMAINS:
-            act = "on" if e["state"] != "on" else "off"
-            mark = "🟡" if e["state"] == "on" else "⚫"
-            buttons.append({"text": f"{mark} {e['name'][:40]}",
-                            "action": f"hat:{_enc(eid)}:{act}:d{domain}:{page}"})
-        elif e["domain"] in ("sensor", "binary_sensor"):
-            buttons.append({"text": f"{e['icon']} {e['name'][:30]} — {e['state_str'][:30]}",
-                            "action": f"had:{_enc(eid)}"})
+        if e:
+            chunk_entities.append(e)
+    paired = _pair_sensors(chunk_entities)
+    buttons = []
+    for item in paired:
+        if isinstance(item, dict) and item.get("type") == "pair":
+            t = item["temp"]
+            h = item["hum"]
+            btn_text = f"🌡 {t['name'][:25]} — {t['state_str'][:20]}  💧 {h['state_str'][:15]}"
+            buttons.append({"text": btn_text, "action": f"had:{_enc(t['entity_id'])}"})
         else:
-            buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
+            e = item
+            if e["domain"] in _TOGGLE_DOMAINS:
+                act = "on" if e["state"] != "on" else "off"
+                mark = "🟡" if e["state"] == "on" else "⚫"
+                buttons.append({"text": f"{mark} {e['name'][:40]}",
+                                "action": f"hat:{_enc(eid)}:{act}:d{domain}:{page}"})
+            elif e["domain"] in ("sensor", "binary_sensor"):
+                buttons.append({"text": f"{e['icon']} {e['name'][:30]} — {e['state_str'][:30]}",
+                                "action": f"had:{_enc(eid)}"})
+            else:
+                buttons.append({"text": f"{e['icon']} {e['name'][:40]}", "action": f"had:{_enc(eid)}"})
     pairs = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     nav = []
     if page > 0:
