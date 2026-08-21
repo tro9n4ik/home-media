@@ -39,7 +39,7 @@ class _App(PluginApp):
 
 app = _App(
     "home_assistant",
-    "1.0.4",
+    "1.0.5",
     "Умный дом: мониторинг датчиков и управление устройствами Home Assistant",
     web_dir=Path(__file__).parent / "web",
     config={
