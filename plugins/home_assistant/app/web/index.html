@@ -314,6 +314,36 @@ fieldset { border: none; margin-bottom: 12px; }
 .chat::-webkit-scrollbar, .e-list::-webkit-scrollbar, .g-list::-webkit-scrollbar { width: 8px; }
 .chat::-webkit-scrollbar-thumb, .e-list::-webkit-scrollbar-thumb, .g-list::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 99px; }
 @media (max-width: 560px) { .wrap { padding: 18px 14px 50px; } .card-state { display: none; } .m-head .g-name-input { width: 100%; flex: none; } }
+
+/* ── Конструктор клавиатуры ────────────────────────────────────── */
+.kb-row {
+  display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+  margin-bottom: 6px; transition: all .15s; cursor: grab;
+}
+.kb-row:hover { border-color: var(--line2); background: var(--panel3); }
+.kb-row.dragging { opacity: .45; border-style: dashed; }
+.kb-row.over { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(76,201,240,.25); }
+.kb-row-handle { color: var(--txt3); cursor: grab; padding: 0 4px; font-size: 14px; user-select: none; }
+.kb-row.dragging .kb-row-handle { cursor: grabbing; }
+.kb-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  font-size: 12.5px; color: var(--txt); transition: all .12s; flex: 1; min-width: 0;
+}
+.kb-btn:hover { border-color: var(--line2); background: var(--panel3); }
+.kb-btn-type { color: var(--txt2); font-size: 13px; flex: none; }
+.kb-btn-text { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-btn-val { color: var(--txt3); font-size: 11px; font-family: ui-monospace, monospace; flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-btn-del { background: transparent; border: none; color: var(--txt3); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 6px; opacity: 0; transition: all .15s; flex: none; }
+.kb-btn:hover .kb-btn-del { opacity: 1; }
+.kb-btn-del:hover { color: var(--bad); background: rgba(248,113,113,.12); }
+.kb-add-btn { background: var(--panel); border: 1px dashed var(--line); color: var(--txt2); padding: 4px 8px; border-radius: 8px; font-size: 14px; cursor: pointer; flex: none; transition: all .12s; }
+.kb-add-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(76,201,240,.1); }
+.kb-row-del { background: transparent; border: none; color: var(--txt3); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 6px; opacity: 0; transition: all .15s; flex: none; }
+.kb-row:hover .kb-row-del { opacity: 1; }
+.kb-row-del:hover { color: var(--bad); background: rgba(248,113,113,.12); }
+.kb-row:empty::before { content: 'Пустая строка — нажмите ＋'; color: var(--txt3); font-size: 12px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -338,6 +368,7 @@ fieldset { border: none; margin-bottom: 12px; }
   <nav class="tabs">
     <button class="tab on" id="tabDash" onclick="switchTab('dash')">🏠 Дашборд</button>
     <button class="tab" id="tabTg" onclick="switchTab('tg')">🗂 Telegram-меню</button>
+    <button class="tab" id="tabKb" onclick="switchTab('kb')">⌨ Клавиатура</button>
   </nav>
 
   <main id="app"></main>
@@ -360,6 +391,21 @@ fieldset { border: none; margin-bottom: 12px; }
       <span class="spacer"></span>
       <button class="btn ghost" id="tgRevert" onclick="tgRevert()" disabled>↺ Отменить</button>
       <button class="btn primary" id="tgSave" onclick="saveTgMenu()" disabled>💾 Сохранить</button>
+    </div>
+  </div>
+
+  <div id="kbPanel" style="display:none">
+    <div class="tg-toolbar">
+      <button class="btn primary" id="kbAddRow" onclick="kbAddRow()">➕ Добавить строку</button>
+      <button class="btn" onclick="kbPreview()">👁 Превью</button>
+      <span class="tg-stat" id="kbStat"></span>
+    </div>
+    <div class="pane" id="kbCanvas"></div>
+    <div class="controls" style="margin-top:14px;align-items:center">
+      <span class="status" id="kbStatus"></span>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="kbRevert" onclick="kbRevert()" disabled>↺ Отменить</button>
+      <button class="btn primary" id="kbSave" onclick="kbSave()" disabled>💾 Сохранить</button>
     </div>
   </div>
 </div>
@@ -457,9 +503,12 @@ function hl(text, q) {
 function switchTab(t) {
   $('#tabDash').className = 'tab' + (t === 'dash' ? ' on' : '');
   $('#tabTg').className = 'tab' + (t === 'tg' ? ' on' : '');
+  $('#tabKb').className = 'tab' + (t === 'kb' ? ' on' : '');
   $('#app').style.display = t === 'dash' ? '' : 'none';
   $('#tgPanel').style.display = t === 'tg' ? '' : 'none';
+  $('#kbPanel').style.display = t === 'kb' ? '' : 'none';
   if (t === 'tg') loadTgMenu();
+  if (t === 'kb') loadKb();
 }
 
 /* ── Дашборд ─────────────────────────────────────────────────── */
@@ -1156,7 +1205,18 @@ function renderPreview() {
     paired.forEach(item => {
       if (item.type === 'pair') {
         kb.push({ t: `🌡 ${item.temp.name} — ${item.temp.state_str}  💧 ${item.hum.state_str}`, d: 'x' + item.temp.entity_id });
-      } else {
+} else if (TG_PREV === 'kb') {
+    // превью кастомной клавиатуры
+    const customKb = KB_ROWS.length ? KB_ROWS : (await api('/api/keyboard')).keyboard || [];
+    msg = '⌨ <b>Кастомная клавиатура</b>\n\n' + (customKb.length ? '' : '(пусто)');
+    customKb.forEach((row, ri) => {
+      row.forEach((btn, bi) => {
+        const typeLabel = btn.type === 'callback' ? '⚡' : (btn.type === 'url' ? '🔗' : '🌐');
+        kb.push({ t: `${typeLabel} ${btn.text}`, d: 'kb' });
+      });
+    });
+    kb.push({ t: '◀ Назад', full: true, d: 'm' });
+  } else {
         kb.push({ t: `${item.icon} ${label({it:{},e:item})}`, d: 'x' + item.entity_id });
       }
     });
@@ -1203,6 +1263,151 @@ document.addEventListener('click', (ev) => {
     return;
   }
 });
+
+});
+
+/* ── Конструктор inline-клавиатуры ──────────────────────────────── */
+
+let KB_ROWS = [];
+let KB_BASE = '';
+let KB_DIRTY = false;
+
+async function loadKb() {
+  const canvas = $('#kbCanvas');
+  canvas.innerHTML = '<div class="e-empty">Загрузка…</div>';
+  try {
+    const res = await api('/api/keyboard');
+    KB_ROWS = res.keyboard || [];
+    KB_BASE = JSON.stringify(KB_ROWS);
+    renderKbCanvas();
+  } catch (e) {
+    canvas.innerHTML = '<div class="e-empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function kbMarkDirty() {
+  KB_DIRTY = JSON.stringify(KB_ROWS) !== KB_BASE;
+  $('#kbSave').disabled = !KB_DIRTY;
+  $('#kbRevert').disabled = !KB_DIRTY;
+  const st = $('#kbStat');
+  if (st) {
+    st.textContent = KB_DIRTY ? '● есть несохранённые изменения' : '✓ всё сохранено';
+    st.className = 'tg-stat' + (KB_DIRTY ? ' dirty' : '');
+  }
+}
+
+function renderKbCanvas() {
+  const canvas = $('#kbCanvas');
+  if (!KB_ROWS.length) {
+    canvas.innerHTML = '<div class="e-empty">Клавиатура пуста. Добавьте строку кнопкой «➕ Добавить строку».</div>';
+    kbMarkDirty();
+    return;
+  }
+  let html = '';
+  KB_ROWS.forEach((row, ri) => {
+    html += `<div class="kb-row" data-ri="${ri}" draggable="true">`;
+    html += `<span class="kb-row-handle" title="Перетащить строку">⋮⋮</span>`;
+    row.forEach((btn, bi) => {
+      const typeLabel = btn.type === 'callback' ? '⚡' : (btn.type === 'url' ? '🔗' : '🌐');
+      const val = btn.type === 'callback' ? btn.callback_data : (btn.type === 'url' ? btn.url : btn.web_app_url);
+      html += `<div class="kb-btn" data-ri="${ri}" data-bi="${bi}">`;
+      html += `<span class="kb-btn-type">${typeLabel}</span>`;
+      html += `<span class="kb-btn-text">${escapeHtml(btn.text)}</span>`;
+      html += `<span class="kb-btn-val">${escapeHtml(val.slice(0, 30))}${val.length > 30 ? '…' : ''}</span>`;
+      html += `<button class="kb-btn-del" title="Удалить" onclick="event.stopPropagation();kbDelBtn(${ri},${bi})">✕</button>`;
+      html += `</div>`;
+    });
+    html += `<button class="kb-add-btn" onclick="event.stopPropagation();kbAddBtn(${ri})" title="Добавить кнопку">＋</button>`;
+    html += `<button class="kb-row-del" onclick="event.stopPropagation();kbDelRow(${ri})" title="Удалить строку">🗑</button>`;
+    html += `</div>`;
+  }
+  canvas.innerHTML = html;
+
+  // drag-n-drop строк
+  const rows = canvas.querySelectorAll('.kb-row');
+  let dragRi = null;
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragRi = +row.dataset.ri;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('over'); });
+    row.addEventListener('dragleave', () => row.classList.remove('over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.classList.remove('over');
+      const dropRi = +row.dataset.ri;
+      if (dragRi !== null && dragRi !== dropRi) {
+        const [moved] = KB_ROWS.splice(dragRi, 1);
+        KB_ROWS.splice(dropRi, 0, moved);
+        renderKbCanvas();
+        kbMarkDirty();
+      }
+      dragRi = null;
+    });
+  });
+  kbMarkDirty();
+}
+
+function kbAddRow() {
+  KB_ROWS.push([]);
+  renderKbCanvas();
+}
+
+function kbDelRow(ri) {
+  if (!confirm('Удалить строку?')) return;
+  KB_ROWS.splice(ri, 1);
+  renderKbCanvas();
+}
+
+function kbAddBtn(ri) {
+  const row = KB_ROWS[ri];
+  const btn = { text: 'Кнопка', type: 'callback', callback_data: 'action' };
+  row.splice(row.length > 0 ? row.length : 0, 0, btn);
+  renderKbCanvas();
+}
+
+function kbDelBtn(ri, bi) {
+  KB_ROWS[ri].splice(bi, 1);
+  if (!KB_ROWS[ri].length) KB_ROWS.splice(ri, 1);
+  renderKbCanvas();
+}
+
+async function kbSave() {
+  const btn = $('#kbSave');
+  btn.disabled = true;
+  btn.textContent = 'Отправка…';
+  try {
+    await api('/api/keyboard', { method: 'POST', body: JSON.stringify({ keyboard: KB_ROWS }) });
+    KB_BASE = JSON.stringify(KB_ROWS);
+    KB_DIRTY = false;
+    $('#kbSave').disabled = true;
+    $('#kbRevert').disabled = true;
+    const st = $('#kbStat');
+    if (st) { st.textContent = '✓ сохранено'; st.className = 'tg-stat'; }
+    toast('✓ Клавиатура сохранена');
+  } catch (e) {
+    const st = $('#kbStatus');
+    if (st) { st.textContent = '✗ ' + e.message; st.className = 'status err'; }
+    toast('✗ ' + e.message, true);
+  } finally {
+    btn.disabled = !KB_DIRTY;
+    btn.textContent = '💾 Сохранить';
+  }
+}
+
+function kbRevert() {
+  loadKb();
+  toast('↺ Изменения отменены');
+}
+
+function kbPreview() {
+  TG_PREV = 'kb';
+  renderPreview();
+  $('#previewOv').style.display = '';
+}
 
 load();
 setInterval(() => load(false), 10000);

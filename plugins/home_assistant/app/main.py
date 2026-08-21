@@ -53,6 +53,7 @@ app = _App(
         "hide":           {"type": "json",   "default": [],  "label": "entity_id для скрытия"},
         "tg_groups":      {"type": "json",   "default": [],  "label": "Группы Telegram-меню (имя, иконка, сущности)"},
         "tg_show_sensors":{"type": "bool",   "default": True, "label": "Показывать в Telegram раздел «Датчики» (непривязанные)"},
+        "tg_keyboard":    {"type": "json",   "default": [],  "label": "Inline-клавиатура (ряды кнопок: текст, тип, значение)"},
     },
 )
 
@@ -512,26 +513,29 @@ async def _menu_main() -> dict:
         + (f" — {_CACHE['error']}" if _CACHE["error"] else ""),
         f"⏱ Обновлено: {tstamp}",
     ]
-    buttons = []
-    groups = _tg_groups()
-    if groups:
-        # режим пользовательских групп: в главном меню только группы
-        for i, g in enumerate(groups):
-            if g["entities"]:
-                buttons.append({"text": f"{g['icon']} {g['name']} ({len(g['entities'])})",
-                                "action": f"hag:{i}"})
-        if not buttons:
-            lines.append("\nГруппы пусты — добавьте сущности в конфигураторе Telegram-меню")
+    # кастомная клавиатура имеет приоритет
+    custom_kb = app.config.get("tg_keyboard") or []
+    if custom_kb:
+        buttons = custom_kb
     else:
-        # fallback: показываем разделы по доменам
-        for domain, label in _DOMAIN_SECTIONS:
-            n = len(_domain_ids(domain))
-            if n:
-                buttons.append({"text": f"{label} ({n})", "action": f"hal:{domain}"})
-    sensors = _sensor_ids()
-    if sensors:
-        buttons.append({"text": f"📊 Датчики ({len(sensors)})", "action": "hal:sensor"})
-    buttons.append({"text": "🔄 Обновить", "action": "har"})
+        buttons = []
+        groups = _tg_groups()
+        if groups:
+            for i, g in enumerate(groups):
+                if g["entities"]:
+                    buttons.append({"text": f"{g['icon']} {g['name']} ({len(g['entities'])})",
+                                    "action": f"hag:{i}"})
+            if not buttons:
+                lines.append("\nГруппы пусты — добавьте сущности в конфигураторе Telegram-меню")
+        else:
+            for domain, label in _DOMAIN_SECTIONS:
+                n = len(_domain_ids(domain))
+                if n:
+                    buttons.append({"text": f"{label} ({n})", "action": f"hal:{domain}"})
+        sensors = _sensor_ids()
+        if sensors:
+            buttons.append({"text": f"📊 Датчики ({len(sensors)})", "action": "hal:sensor"})
+        buttons.append({"text": "🔄 Обновить", "action": "har"})
     return {"text": "\n".join(lines), "buttons": buttons}
 
 
@@ -778,6 +782,51 @@ async def api_refresh():
     await _refresh()
     return {"ok": _CACHE["ha_ok"], "count": len(_CACHE["list"]),
             "cached_at": _CACHE["at"]}
+
+
+# ── Кастомная inline-клавиатура ────────────────────────────────────────────────
+@app.get("/api/keyboard")
+async def api_keyboard_get():
+    kb = app.config.get("tg_keyboard") or []
+    return {"ok": True, "keyboard": kb}
+
+
+@app.post("/api/keyboard")
+async def api_keyboard_set(body: dict):
+    kb = body.get("keyboard")
+    if not isinstance(kb, list):
+        return {"ok": False, "error": "keyboard должен быть массивом"}
+    # валидация структуры
+    for row in kb:
+        if not isinstance(row, list):
+            return {"ok": False, "error": "каждая строка — массив кнопок"}
+        for btn in row:
+            if not isinstance(btn, dict):
+                return {"ok": False, "error": "кнопка — объект"}
+            if "text" not in btn:
+                return {"ok": False, "error": "кнопка: нужен text"}
+            if btn.get("type") not in ("callback", "url", "web_app"):
+                return {"ok": False, "error": "кнопка: type должен быть callback|url|web_app"}
+            if btn.get("type") == "callback" and "callback_data" not in btn:
+                return {"ok": False, "error": "callback кнопка: нужен callback_data"}
+            if btn.get("type") == "url" and "url" not in btn:
+                return {"ok": False, "error": "url кнопка: нужен url"}
+            if btn.get("type") == "web_app" and "web_app_url" not in btn:
+                return {"ok": False, "error": "web_app кнопка: нужен web_app_url"}
+    app.config["tg_keyboard"] = kb
+    # сохраняем в конфиг плагина
+    try:
+        import json
+        from pathlib import Path
+        cfg_path = Path(__file__).parent / "config.json"
+        cfg = {}
+        if cfg_path.exists():
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        cfg["tg_keyboard"] = kb
+        cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        app.logger.warning("save keyboard config: %s", e)
+    return {"ok": True, "keyboard": kb}
 
 
 # ── Контракт бота ─────────────────────────────────────────────────────────────
