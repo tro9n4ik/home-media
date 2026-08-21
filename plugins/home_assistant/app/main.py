@@ -547,8 +547,6 @@ def _pair_sensors(entities: list[dict]) -> list[dict]:
     non_sensor = [e for e in entities if e["domain"] not in ("sensor", "binary_sensor")]
     sensors = [e for e in entities if e["domain"] in ("sensor", "binary_sensor")]
     
-    by_base = {}
-    suffixes = ("_temperature", "_humidity", "_temp", "_hum")
     for e in sensors:
         base = e["entity_id"]
         for sfx in suffixes:
@@ -556,25 +554,27 @@ def _pair_sensors(entities: list[dict]) -> list[dict]:
                 base = base[:-len(sfx)]
                 break
         else:
-            # не похож на температуру/влажность — оставляем как есть
             continue
         by_base.setdefault(base, {})[e["entity_id"].split(".")[-1]] = e
-    used = set()
-    result = []
+    
+    used: set[str] = set()
+    result: list[dict] = []
+    
     for base, parts in by_base.items():
         if "temperature" in parts and "humidity" in parts:
             result.append({"type": "pair", "temp": parts["temperature"], "hum": parts["humidity"]})
             used.add(parts["temperature"]["entity_id"])
             used.add(parts["humidity"]["entity_id"])
-        else:
-            for e in parts.values():
-                if e["entity_id"] not in used:
-                    result.append(e)
-    # добавляем датчики, не подпавшие под суффиксы
+        for e in parts.values():
+            if e["entity_id"] not in used:
+                result.append(e)
+                used.add(e["entity_id"])
+    
     for e in sensors:
         if e["entity_id"] not in used:
             result.append(e)
-    # добавляем не-сенсорные сущности без изменений
+            used.add(e["entity_id"])
+    
     result.extend(non_sensor)
     return result
 
